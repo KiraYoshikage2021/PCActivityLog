@@ -1,0 +1,18 @@
+# 构建产物（体积大且可再生，不上传）
+bin/
+obj/
+*.pdb
+
+# 发布输出（156MB 单文件绝不能进 git）
+publish*/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# 系统杂项
+Thumbs.db
+.DS_Store
+.zcode/

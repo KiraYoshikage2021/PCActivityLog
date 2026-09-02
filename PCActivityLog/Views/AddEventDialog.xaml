@@ -1,0 +1,37 @@
+<Window x:Class="PCActivityLog.Views.AddEventDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="添加记录" Height="440" Width="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False" ResizeMode="NoResize">
+
+    <StackPanel Margin="18">
+        <TextBlock Text="手动补录一条事件（例如：自己拷贝安装的绿色软件）" Foreground="{DynamicResource TextSecondaryBrush}"
+                   FontSize="12" Margin="0,0,0,14" />
+
+        <TextBlock Text="类型 *" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <ComboBox x:Name="TypeBox" Margin="0,0,0,12" />
+
+        <TextBlock Text="名称 *" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <TextBox x:Name="NameBox" Margin="0,0,0,12" Padding="8,6" />
+
+        <TextBlock Text="路径（可选）" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <TextBox x:Name="PathBox" Margin="0,0,0,12" Padding="8,6"
+                 ToolTip="例如软件安装目录或文件完整路径" />
+
+        <TextBlock Text="时间" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <DatePicker x:Name="DatePicker" Width="140" />
+            <TextBox x:Name="TimeBox" Width="90" Margin="8,0,0,0" Padding="8,6"
+                     ToolTip="时分秒，如 14:30:00" />
+        </StackPanel>
+
+        <TextBlock Text="备注（可选）" Margin="0,0,0,4" Foreground="{DynamicResource TextSecondaryBrush}" />
+        <TextBox x:Name="NoteBox" Height="72" TextWrapping="Wrap" AcceptsReturn="True"
+                 Margin="0,0,0,18" Padding="8,6" VerticalContentAlignment="Top" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="保存" Click="Ok_Click" Style="{StaticResource PrimaryButton}" MinWidth="92" />
+            <Button Content="取消" Click="Cancel_Click" MinWidth="92" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>
