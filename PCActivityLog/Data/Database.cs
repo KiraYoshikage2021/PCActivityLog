@@ -205,6 +205,25 @@ public class Database
         cmd.ExecuteNonQuery();
     }
 
+    /// <summary>查询某时间之后、某类型的全部事件（供 IM 文件状态复查）。</summary>
+    public List<ActivityEvent> QueryEventsByType(string type, DateTime since)
+    {
+        var list = new List<ActivityEvent>();
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT id, type, name, path, size_bytes, url, source, version, old_version, occurred_at, note, extra
+            FROM events
+            WHERE type=@t AND occurred_at >= @since
+            ORDER BY id DESC LIMIT 2000
+            """;
+        cmd.Parameters.AddWithValue("@t", type);
+        cmd.Parameters.AddWithValue("@since", since.ToString("yyyy-MM-dd HH:mm:ss"));
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read()) list.Add(ReadEvent(reader));
+        return list;
+    }
+
     // ================= 内部状态键值表 =================
 
     /// <summary>读取内部状态值（浏览器游标等），不存在返回 null。</summary>

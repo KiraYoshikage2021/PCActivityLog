@@ -57,6 +57,11 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool notifySystem;
     [ObservableProperty] private bool notifyBrowse;
 
+    // ---------- 微信/QQ 文件监视 ----------
+    [ObservableProperty] private bool moduleImEnabled;
+    [ObservableProperty] private bool imWechat;
+    [ObservableProperty] private bool imQq;
+
     // ---------- 行为 ----------
     [ObservableProperty] private bool minimizeToTrayOnClose;
     [ObservableProperty] private bool startWithWindows;
@@ -90,6 +95,10 @@ public partial class SettingsViewModel : ObservableObject
         BrowserFirefox = settings.BrowserFirefox;
         BrowserPollMinutes = settings.BrowserPollMinutes;
         BrowserRetentionDays = settings.BrowserRetentionDays;
+
+        ModuleImEnabled = settings.ModuleImEnabled;
+        ImWechat = settings.ImWechat;
+        ImQq = settings.ImQq;
 
         OtherRetentionDays = settings.OtherRetentionDays;
 
@@ -131,6 +140,11 @@ public partial class SettingsViewModel : ObservableObject
     partial void OnBrowserChromeChanged(bool value) { _s.BrowserChrome = value; _s.Save(); }
     partial void OnBrowserEdgeChanged(bool value) { _s.BrowserEdge = value; _s.Save(); }
     partial void OnBrowserFirefoxChanged(bool value) { _s.BrowserFirefox = value; _s.Save(); }
+
+    partial void OnModuleImEnabledChanged(bool value)
+    { _s.ModuleImEnabled = value; _s.Save(); _manager.SetModuleEnabled("imfile", value); }
+    partial void OnImWechatChanged(bool value) { _s.ImWechat = value; _s.Save(); _manager.RestartModule("imfile"); }
+    partial void OnImQqChanged(bool value) { _s.ImQq = value; _s.Save(); _manager.RestartModule("imfile"); }
 
     partial void OnNotificationsEnabledChanged(bool value) { _s.NotificationsEnabled = value; _s.Save(); }
     partial void OnNotifyDownloadsChanged(bool value) { _s.NotifyDownloads = value; _s.Save(); }

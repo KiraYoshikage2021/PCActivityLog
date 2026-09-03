@@ -51,7 +51,7 @@ public class RetentionService : IDisposable
 
             if (_settings.OtherRetentionDays > 0)
             {
-                foreach (var type in new[] { "download", "file_delete", "file_rename",
+                foreach (var type in new[] { "download", "file_delete", "file_rename", "im_file",
                              "install", "update", "uninstall", "boot", "shutdown", "manual" })
                     removed += DeleteOld(type, now, _settings.OtherRetentionDays);
             }

@@ -25,6 +25,20 @@ public class AppSettings
     /// <summary>浏览器记录模块总开关。</summary>
     public bool ModuleBrowserEnabled { get; set; } = true;
 
+    // ---------- 微信/QQ 文件监视子开关与参数 ----------
+
+    /// <summary>微信/QQ 文件监视模块总开关。</summary>
+    public bool ModuleImEnabled { get; set; } = true;
+
+    /// <summary>是否监视微信收到的文件。</summary>
+    public bool ImWechat { get; set; } = true;
+
+    /// <summary>是否监视 QQ 收到的文件。</summary>
+    public bool ImQq { get; set; } = true;
+
+    /// <summary>额外自定义的 IM 文件目录（自动识别不到时手工补充，递归监视）。</summary>
+    public List<string> ImFolders { get; set; } = new();
+
     // ---------- 文件监视子开关与参数 ----------
 
     /// <summary>是否记录下载。</summary>
@@ -154,6 +168,7 @@ public class AppSettings
             if (!string.IsNullOrEmpty(downloads)) WatchedFolders.Add(downloads);
         }
         WatchedFolders = WatchedFolders.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        ImFolders = ImFolders.Where(Directory.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         SettleSeconds = Math.Clamp(SettleSeconds, 2, 60);
         RegistryPollSeconds = Math.Clamp(RegistryPollSeconds, 10, 3600);

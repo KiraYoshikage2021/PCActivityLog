@@ -38,6 +38,7 @@ public partial class App : Application
     // ---------- 核心组件 ----------
     private WatcherManager? _manager;
     private RetentionService? _retention;
+    private ImFileStatusService? _imStatus;
     private NotificationService? _notifier;
     private TaskbarIcon? _tray;
     private MainWindow? _mainWindow;
@@ -92,6 +93,9 @@ public partial class App : Application
 
         _retention = new RetentionService(Settings, Db);
         _retention.Start();
+
+        _imStatus = new ImFileStatusService(Db);
+        _imStatus.Start();
 
         // 4. 主窗口与托盘
         var exporter = new ExportService(Db);
@@ -252,6 +256,7 @@ public partial class App : Application
         // 优雅关闭（规范第 7 条）：按依赖顺序收尾，每步独立 try/catch
         SafeRun("停止监视模块", () => _manager?.Dispose());
         SafeRun("停止数据清理", () => _retention?.Dispose());
+        SafeRun("停止 IM 状态复查", () => _imStatus?.Dispose());
         SafeRun("冲写数据库队列", () => WriteQueueInstance?.Dispose()); // 内部限时 3 秒
         SafeRun("释放托盘图标", () => _tray?.Dispose());
         SafeRun("释放激活信号", () =>

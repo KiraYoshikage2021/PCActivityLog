@@ -97,6 +97,20 @@
                     </StackPanel>
                 </GroupBox>
 
+                <!-- ======== 微信/QQ 文件监视 ======== -->
+                <GroupBox Header="微信/QQ 文件监视" Padding="8" Margin="0,0,0,10">
+                    <StackPanel>
+                        <CheckBox Content="启用微信/QQ 文件监视模块" IsChecked="{Binding ModuleImEnabled}"
+                                  FontWeight="SemiBold" Margin="0,0,0,6" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                            <CheckBox Content="微信收到的文件" IsChecked="{Binding ImWechat}" Margin="0,0,20,0" />
+                            <CheckBox Content="QQ 收到的文件" IsChecked="{Binding ImQq}" />
+                        </StackPanel>
+                        <TextBlock Text="自动识别默认存储位置（文档下的 xwechat_files / WeChat Files / Tencent Files）；文件被微信/QQ清理后，记录会自动标注「已清理」。"
+                                   Foreground="#94A3B8" FontSize="11.5" TextWrapping="Wrap" />
+                    </StackPanel>
+                </GroupBox>
+
                 <!-- ======== 数据保留 ======== -->
                 <GroupBox Header="数据保留（其他事件）" Padding="8" Margin="0,0,0,10">
                     <StackPanel Orientation="Horizontal">

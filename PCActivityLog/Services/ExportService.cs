@@ -79,10 +79,10 @@ public class ExportService
         return count;
     }
 
-    /// <summary>详情列：下载显示大小，安装/更新显示版本，其他留空。</summary>
+    /// <summary>详情列：下载/IM文件显示大小，安装/更新显示版本，其他留空。</summary>
     private static string DetailOf(ActivityEvent e)
     {
-        if (e.Type == EventType.Download && e.SizeBytes is > 0)
+        if ((e.Type == EventType.Download || e.Type == EventType.ImFile) && e.SizeBytes is > 0)
         {
             var kb = e.SizeBytes.Value / 1024.0;
             return kb >= 1024 ? $"{kb / 1024:F1} MB" : $"{kb:F0} KB";

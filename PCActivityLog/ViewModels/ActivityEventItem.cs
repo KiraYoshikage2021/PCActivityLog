@@ -17,23 +17,64 @@ public class ActivityEventItem
     {
         Event = e;
 
-        // 徽章配色：文字用类型色（深色主题下提亮一档），底色用同色低透明度
-        var c = TypeColor(e.Type);
+        // IM 文件按来源配色（微信绿/QQ蓝），其余按类型色
+        var c = e.Type == EventType.ImFile ? ImColor(e.Source) : TypeColor(e.Type);
+
+        // 徽章配色：文字用基色（深色主题下提亮一档），底色用同色低透明度
         var textBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(c, 0.30f) : c);
         var bgBrush = new SolidColorBrush(ThemeService.WithAlpha(c, ThemeService.IsDark ? (byte)0x3D : (byte)0x24));
         textBrush.Freeze();
         bgBrush.Freeze();
         TypeBrush = textBrush;
         TypeBadgeBrush = bgBrush;
+
+        // 保存状态标识（仅 IM 文件有）：✔ 已保存 / ⚠ 已清理
+        if (e.Type == EventType.ImFile)
+        {
+            var missing = e.GetExtraString("localStatus") == "missing";
+            LocalStatusDisplay = missing ? "⚠ 已清理" : "✔ 已保存";
+            var sc = missing ? Color.FromRgb(0xD9, 0x77, 0x06) : Color.FromRgb(0x16, 0xA3, 0x4A);
+            var sb = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(sc, 0.25f) : sc);
+            sb.Freeze();
+            LocalStatusBrush = sb;
+        }
+        else
+        {
+            LocalStatusDisplay = "";
+            LocalStatusBrush = Brushes.Transparent;
+        }
     }
+
+    /// <summary>IM 文件按来源取品牌色：微信绿 / QQ蓝 / 自定义灰。</summary>
+    private static Color ImColor(string? source) => source switch
+    {
+        "wechat" => Color.FromRgb(0x07, 0xC1, 0x60),
+        "qq" => Color.FromRgb(0x12, 0xB7, 0xF5),
+        _ => Color.FromRgb(0x64, 0x74, 0x8B),
+    };
 
     public long Id => Event.Id;
 
     /// <summary>时间列（含秒）。</summary>
     public string TimeDisplay => Event.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss");
 
-    /// <summary>类型徽章文字。</summary>
-    public string TypeDisplay => Event.Type.ToDisplayName();
+    /// <summary>类型徽章文字（IM 文件按来源显示 微信文件/QQ文件）。</summary>
+    public string TypeDisplay => Event.Type switch
+    {
+        EventType.ImFile => Event.Source switch
+        {
+            "wechat" => "微信文件",
+            "qq" => "QQ文件",
+            _ => "IM文件",
+        },
+        _ => Event.Type.ToDisplayName(),
+    };
+
+    /// <summary>IM 文件的本地保存状态标识（✔ 已保存 / ⚠ 已清理，其他类型为空）。</summary>
+    public string LocalStatusDisplay { get; }
+
+    /// <summary>保存状态标识颜色。</summary>
+    public Brush LocalStatusBrush { get; }
 
     /// <summary>类型徽章文字色（已冻结）。</summary>
     public Brush TypeBrush { get; }
@@ -43,12 +84,12 @@ public class ActivityEventItem
 
     public string Name => Event.Name;
 
-    /// <summary>详情列：下载 → 大小；更新 → 旧→新版本；安装 → 版本。</summary>
+    /// <summary>详情列：下载/IM文件 → 大小；更新 → 旧→新版本；安装 → 版本。</summary>
     public string Detail
     {
         get
         {
-            if (Event.Type == EventType.Download && Event.SizeBytes is > 0)
+            if ((Event.Type == EventType.Download || Event.Type == EventType.ImFile) && Event.SizeBytes is > 0)
             {
                 var kb = Event.SizeBytes.Value / 1024.0;
                 return kb >= 1024 ? $"{kb / 1024:F1} MB" : $"{kb:F0} KB";

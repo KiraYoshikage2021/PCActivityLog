@@ -38,7 +38,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>上次自动刷新时间（节流用）。</summary>
     private DateTime _lastAutoRefresh = DateTime.MinValue;
 
-    [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.All, "全部");
+    [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.AllNoBrowse, "全部");
     [ObservableProperty] private string searchText = "";
     [ObservableProperty] private DateTime? dateFrom;
     [ObservableProperty] private DateTime? dateTo;
@@ -63,9 +63,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
             Groups.Add(new GroupOption(g, g.ToDisplayName()));
 
         _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _debounce.Tick += (_, _) => { _debounce.Stop(); Refresh(); };
+        _debounce.Tick += (_, _) => OnDebounceTick();
 
         _queue.EventsCommitted += OnEventsCommitted;
+    }
+
+    /// <summary>搜索防抖到期：若在"全部"视图则先扩到"全部（含浏览）"再查。</summary>
+    /// <remarks>浏览记录默认不展示，但用户主动搜索时应能搜到。</remarks>
+    private void OnDebounceTick()
+    {
+        _debounce.Stop();
+        EnsureBrowseSearchable();
+        Refresh();
     }
 
     // ---------- 筛选与刷新 ----------
@@ -74,6 +83,13 @@ public partial class MainViewModel : ObservableObject, IDisposable
     partial void OnDateFromChanged(DateTime? value) => Refresh();
     partial void OnDateToChanged(DateTime? value) => Refresh();
     partial void OnSearchTextChanged(string value) { _debounce.Stop(); _debounce.Start(); }
+
+    /// <summary>搜索框有内容时自动切到"全部（含浏览）"，保证能搜到浏览记录。</summary>
+    private void EnsureBrowseSearchable()
+    {
+        if (!string.IsNullOrWhiteSpace(SearchText) && SelectedGroup.Group == EventGroup.AllNoBrowse)
+            SelectedGroup = Groups.Last(g => g.Group == EventGroup.All);
+    }
 
     /// <summary>构造当前筛选条件。</summary>
     private Database.QueryFilter CurrentFilter(int offset) => new(

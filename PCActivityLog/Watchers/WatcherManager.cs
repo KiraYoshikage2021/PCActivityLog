@@ -59,6 +59,7 @@ public class WatcherManager : IEventSink, IDisposable
             _modules.Add(new AppWatcher(_settings, this));
             _modules.Add(new SystemEventWatcher(this, _db));
             _modules.Add(new BrowserHistoryWatcher(_settings, this, _db));
+            _modules.Add(new ImFileWatcher(_settings, this));
         }
     }
 
@@ -70,6 +71,7 @@ public class WatcherManager : IEventSink, IDisposable
         if (_settings.ModuleAppEnabled) SafeStart(Get("app"));
         if (_settings.ModuleSystemEnabled) SafeStart(Get("system"));
         if (_settings.ModuleBrowserEnabled) SafeStart(Get("browser"));
+        if (_settings.ModuleImEnabled) SafeStart(Get("imfile"));
     }
 
     /// <summary>停止全部模块（退出程序时调用；已入库数据不受影响）。</summary>

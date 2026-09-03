@@ -15,6 +15,9 @@ public enum EventType
     /// <summary>文件被重命名（或移动到同监视范围内的新路径）</summary>
     FileRename,
 
+    /// <summary>微信/QQ 等聊天软件收到的文件（source 区分 wechat/qq/im）</summary>
+    ImFile,
+
     /// <summary>软件安装</summary>
     Install,
 
@@ -46,6 +49,7 @@ public static class EventTypeExtensions
         EventType.Download => "download",
         EventType.FileDelete => "file_delete",
         EventType.FileRename => "file_rename",
+        EventType.ImFile => "im_file",
         EventType.Install => "install",
         EventType.Update => "update",
         EventType.Uninstall => "uninstall",
@@ -62,6 +66,7 @@ public static class EventTypeExtensions
         "download" => EventType.Download,
         "file_delete" => EventType.FileDelete,
         "file_rename" => EventType.FileRename,
+        "im_file" => EventType.ImFile,
         "install" => EventType.Install,
         "update" => EventType.Update,
         "uninstall" => EventType.Uninstall,
@@ -78,6 +83,7 @@ public static class EventTypeExtensions
         EventType.Download => "下载",
         EventType.FileDelete => "删除",
         EventType.FileRename => "重命名",
+        EventType.ImFile => "IM文件",
         EventType.Install => "安装",
         EventType.Update => "更新",
         EventType.Uninstall => "卸载",
@@ -93,6 +99,7 @@ public static class EventTypeExtensions
     {
         EventType.Download => EventGroup.Download,
         EventType.FileDelete or EventType.FileRename => EventGroup.FileOps,
+        EventType.ImFile => EventGroup.ImFile,
         EventType.Install or EventType.Update or EventType.Uninstall => EventGroup.App,
         EventType.Boot or EventType.Shutdown => EventGroup.System,
         EventType.Browse => EventGroup.Browse,
@@ -104,13 +111,15 @@ public static class EventTypeExtensions
 /// <summary>事件大类 —— 对应时间线页的筛选标签。</summary>
 public enum EventGroup
 {
-    All,       // 全部
-    Download,  // 下载
-    FileOps,   // 文件操作（删除/重命名）
-    App,       // 应用（安装/更新/卸载）
-    System,    // 系统（开机/关机）
-    Browse,    // 浏览
-    Manual,    // 手动
+    AllNoBrowse, // 全部（默认视图，不含浏览记录）
+    Download,    // 下载
+    FileOps,     // 文件操作（删除/重命名）
+    ImFile,      // 微信/QQ 文件
+    App,         // 应用（安装/更新/卸载）
+    System,      // 系统（开机/关机）
+    Browse,      // 浏览
+    Manual,      // 手动
+    All,         // 全部（含浏览）
 }
 
 /// <summary>EventGroup 的辅助方法。</summary>
@@ -119,13 +128,15 @@ public static class EventGroupExtensions
     /// <summary>大类的中文显示名（用于筛选下拉框）。</summary>
     public static string ToDisplayName(this EventGroup g) => g switch
     {
-        EventGroup.All => "全部",
+        EventGroup.AllNoBrowse => "全部",
         EventGroup.Download => "下载",
         EventGroup.FileOps => "文件操作",
+        EventGroup.ImFile => "微信/QQ",
         EventGroup.App => "应用",
         EventGroup.System => "系统",
         EventGroup.Browse => "浏览",
         EventGroup.Manual => "手动",
+        EventGroup.All => "全部（含浏览）",
         _ => g.ToString(),
     };
 
@@ -134,13 +145,19 @@ public static class EventGroupExtensions
     {
         return g switch
         {
+            EventGroup.AllNoBrowse => new[] // 全部但不含浏览（默认视图）
+            {
+                "download", "file_delete", "file_rename", "im_file",
+                "install", "update", "uninstall", "boot", "shutdown", "manual",
+            },
             EventGroup.Download => new[] { "download" },
             EventGroup.FileOps => new[] { "file_delete", "file_rename" },
+            EventGroup.ImFile => new[] { "im_file" },
             EventGroup.App => new[] { "install", "update", "uninstall" },
             EventGroup.System => new[] { "boot", "shutdown" },
             EventGroup.Browse => new[] { "browse" },
             EventGroup.Manual => new[] { "manual" },
-            _ => Array.Empty<string>(), // All = 空 = 不过滤
+            _ => Array.Empty<string>(), // All = 空 = 不过滤（含浏览）
         };
     }
 }
