@@ -27,6 +27,19 @@ public partial class MainWindow : Window
         _vm = vm;
         DataContext = vm;
         vm.SelectRequested += OnSelectRequested;
+
+        // 从隐藏（托盘）重新变为可见时补刷：托盘期间到达的事件一打开就能看到
+        IsVisibleChanged += (_, e) =>
+        {
+            if ((bool)e.NewValue) _vm.RefreshIfIdle();
+        };
+    }
+
+    /// <summary>窗口被激活（用户切回本软件）时补刷，保证"看它的时候总是新的"。</summary>
+    protected override void OnActivated(EventArgs e)
+    {
+        base.OnActivated(e);
+        _vm.RefreshIfIdle();
     }
 
     /// <summary>窗口句柄就绪：应用标题栏主题 + 挂系统消息钩子。</summary>

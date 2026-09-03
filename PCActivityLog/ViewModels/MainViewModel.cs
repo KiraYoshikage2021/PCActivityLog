@@ -35,8 +35,18 @@ public partial class MainViewModel : ObservableObject, IDisposable
     /// <summary>搜索防抖定时器。</summary>
     private readonly DispatcherTimer _debounce;
 
-    /// <summary>上次自动刷新时间（节流用）。</summary>
+    /// <summary>尾沿补刷定时器：节流窗口（5 秒）内到达的事件合并为一次延后刷新。</summary>
+    private readonly DispatcherTimer _trailingRefresh;
+
+    /// <summary>UI 线程调度器（构造时捕获）。后台线程回调里绝不能碰 WPF 对象，
+    /// 一切涉及依赖属性的操作都经它编组到 UI 线程执行。</summary>
+    private readonly Dispatcher _uiDispatcher;
+
+    /// <summary>上次自动刷新时间（前沿节流用）。</summary>
     private DateTime _lastAutoRefresh = DateTime.MinValue;
+
+    /// <summary>上次窗口显示/激活补刷时间（RefreshIfIdle 自身节流用）。</summary>
+    private DateTime _lastIdleRefresh = DateTime.MinValue;
 
     [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.AllNoBrowse, "全部");
     [ObservableProperty] private string searchText = "";
@@ -58,12 +68,22 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _db = db;
         _queue = queue;
         _exporter = exporter;
+        _uiDispatcher = Dispatcher.CurrentDispatcher; // 本构造函数固定在 UI 线程调用
 
         foreach (EventGroup g in Enum.GetValues(typeof(EventGroup)))
             Groups.Add(new GroupOption(g, g.ToDisplayName()));
 
         _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _debounce.Tick += (_, _) => OnDebounceTick();
+
+        _trailingRefresh = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _trailingRefresh.Tick += (_, _) =>
+        {
+            _trailingRefresh.Stop();
+            if (!CanAutoRefresh()) return;
+            _lastAutoRefresh = DateTime.Now;
+            Refresh();
+        };
 
         _queue.EventsCommitted += OnEventsCommitted;
     }
@@ -137,23 +157,56 @@ public partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>新事件入库回调：主窗口可见时自动刷新（10 秒节流）。</summary>
+    /// <summary>新事件入库回调：前沿+尾沿节流刷新。
+    /// 修复点：旧实现节流窗口内的事件被直接丢弃且不补刷，导致"要切筛选才能看到新记录"。</summary>
+    /// <summary>新事件入库回调：前沿+尾沿节流刷新。
+    /// 根因修复：本方法运行在写队列的后台线程，旧代码读 MainWindow/IsVisible 等
+    /// WPF 属性触发跨线程异常且被静默吞掉——自动刷新因此从未生效过。
+    /// 现在后台线程只做调度（用构造时捕获的 Dispatcher），判断全部在 UI 线程做。</summary>
     private void OnEventsCommitted(object? sender, IReadOnlyList<ActivityEvent> events)
     {
         try
         {
-            var win = Application.Current?.MainWindow;
-            if (win is not { IsVisible: true }) return;
-            if (DateTime.Now - _lastAutoRefresh < TimeSpan.FromSeconds(10)) return;
-            _lastAutoRefresh = DateTime.Now;
-
-            win.Dispatcher.BeginInvoke(() =>
-            {
-                // 用户正在搜索时不打扰，避免打断输入中的筛选
-                if (string.IsNullOrEmpty(SearchText)) Refresh();
-            });
+            _uiDispatcher.BeginInvoke(ArmAutoRefresh);
         }
-        catch { /* 自动刷新失败不影响主流程 */ }
+        catch (Exception ex) { DiagnosticsLog.Error("自动刷新调度失败", ex); }
+    }
+
+    /// <summary>是否允许自动刷新（必须在 UI 线程调用：读 IsVisible 与 SearchText）。</summary>
+    private bool CanAutoRefresh()
+        => Application.Current?.MainWindow is { IsVisible: true } && string.IsNullOrEmpty(SearchText);
+
+    /// <summary>前沿+尾沿节流（5 秒窗口，UI 线程执行）：
+    /// 距上次刷新足够久 → 立即刷新（前沿）；
+    /// 窗口期内 → 把到达的事件合并为窗口结束时的一次延后刷新（尾沿），绝不丢。</summary>
+    private void ArmAutoRefresh()
+    {
+        if (!CanAutoRefresh()) return;
+        var since = DateTime.Now - _lastAutoRefresh;
+        if (since >= TimeSpan.FromSeconds(5))
+        {
+            _lastAutoRefresh = DateTime.Now;
+            _trailingRefresh.Stop();
+            Refresh();
+        }
+        else
+        {
+            // 尾沿：重设到本窗口结束时刻；窗口内再多事件也只合并为这一次补刷
+            _trailingRefresh.Stop();
+            _trailingRefresh.Interval = TimeSpan.FromSeconds(5) - since;
+            _trailingRefresh.Start();
+        }
+    }
+
+    /// <summary>窗口重新显示/被激活时的补刷（2 秒自身节流，避免每次点击都查库）。</summary>
+    public void RefreshIfIdle()
+    {
+        if (!CanAutoRefresh()) return;
+        if (DateTime.Now - _lastIdleRefresh < TimeSpan.FromSeconds(2)) return;
+        _lastIdleRefresh = DateTime.Now;
+        _lastAutoRefresh = DateTime.Now;
+        _trailingRefresh.Stop();
+        Refresh();
     }
 
     // ---------- 行操作 ----------
@@ -309,6 +362,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _debounce.Stop();
+        _trailingRefresh.Stop();
         _queue.EventsCommitted -= OnEventsCommitted; // 配对解绑（规范第 3 条）
     }
 }
