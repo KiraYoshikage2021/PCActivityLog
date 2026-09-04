@@ -39,6 +39,9 @@ public class AppSettings
     /// <summary>额外自定义的 IM 文件目录（自动识别不到时手工补充，递归监视）。</summary>
     public List<string> ImFolders { get; set; } = new();
 
+    /// <summary>时间线各列宽度（键 = 列标题文本，值 = 像素），用户拖拽后记忆，重启保持。</summary>
+    public Dictionary<string, double> ColumnWidths { get; set; } = new();
+
     // ---------- 文件监视子开关与参数 ----------
 
     /// <summary>是否记录下载。</summary>

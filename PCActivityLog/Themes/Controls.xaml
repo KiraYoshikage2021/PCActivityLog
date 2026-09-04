@@ -307,6 +307,38 @@
     </Style>
 
     <!-- ==================== 数据表格 ==================== -->
+    <!-- 列宽拖拽抓手样式：默认隐身，悬停/拖动时显示 3px 蓝色分隔线。
+         框架（dotnet/wpf）要求模板部件名为 PART_RightHeaderGripper（调本列）
+         与 PART_LeftHeaderGripper（调左邻列），由 DataGridColumnHeader.OnApplyTemplate
+         按名挂钩 DragStarted/DragDelta/DragCompleted/双击自适应。 -->
+    <Style x:Key="ColumnGripStyle" TargetType="Thumb">
+        <Setter Property="Width" Value="10"/>
+        <Setter Property="Cursor" Value="SizeWE"/>
+        <Setter Property="Opacity" Value="0"/>
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid Background="Transparent">
+                        <Border x:Name="gripLine" Width="3" CornerRadius="2" Opacity="0"
+                                Background="{DynamicResource AccentBrush}"
+                                HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                Margin="0,8"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="gripLine" Property="Opacity" Value="1"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="gripLine" Property="Opacity" Value="1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="DataGridColumnHeader">
         <Setter Property="Background" Value="{DynamicResource HeaderBgBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
@@ -318,10 +350,23 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="DataGridColumnHeader">
-                    <Border Background="{TemplateBinding Background}"
-                            BorderBrush="{DynamicResource HeaderBorderBrush}" BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource HeaderBorderBrush}" BorderThickness="0,0,0,1"/>
                         <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
-                    </Border>
+
+                        <!-- 右抓手：调本列宽；左抓手：调左邻列宽（双击任一 = 自适应） -->
+                        <Thumb x:Name="PART_RightHeaderGripper" Style="{StaticResource ColumnGripStyle}"
+                               HorizontalAlignment="Right"/>
+                        <Thumb x:Name="PART_LeftHeaderGripper" Style="{StaticResource ColumnGripStyle}"
+                               HorizontalAlignment="Left"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="PART_RightHeaderGripper" Property="Opacity" Value="1"/>
+                            <Setter TargetName="PART_LeftHeaderGripper" Property="Opacity" Value="1"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

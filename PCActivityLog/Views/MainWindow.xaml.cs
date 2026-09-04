@@ -27,12 +27,52 @@ public partial class MainWindow : Window
         _vm = vm;
         DataContext = vm;
         vm.SelectRequested += OnSelectRequested;
+        ApplyColumnWidths(); // 用户上次拖定的列宽
 
         // 从隐藏（托盘）重新变为可见时补刷：托盘期间到达的事件一打开就能看到
         IsVisibleChanged += (_, e) =>
         {
             if ((bool)e.NewValue) _vm.RefreshIfIdle();
         };
+    }
+
+    // ---------- 列宽记忆 ----------
+
+    /// <summary>启动时应用设置里保存的列宽（键 = 列标题；异常值忽略走默认）。</summary>
+    private void ApplyColumnWidths()
+    {
+        try
+        {
+            var saved = App.Settings?.ColumnWidths;
+            if (saved is null || saved.Count == 0) return;
+            foreach (var col in Grid.Columns)
+            {
+                if (col.Header is string header &&
+                    saved.TryGetValue(header, out var w) &&
+                    w >= col.MinWidth && w is > 0 and < 5000)
+                {
+                    col.Width = new DataGridLength(w);
+                }
+            }
+        }
+        catch (Exception ex) { DiagnosticsLog.Warn("应用列宽设置失败: " + ex.Message); }
+    }
+
+    /// <summary>把当前各列实际宽度写回设置（OnClosing 时调用，隐藏到托盘也顺路保存）。</summary>
+    private void SaveColumnWidths()
+    {
+        try
+        {
+            var settings = App.Settings;
+            if (settings is null) return;
+            foreach (var col in Grid.Columns)
+            {
+                if (col.Header is string header && col.ActualWidth >= 30)
+                    settings.ColumnWidths[header] = Math.Round(col.ActualWidth);
+            }
+            settings.Save();
+        }
+        catch (Exception ex) { DiagnosticsLog.Warn("保存列宽失败: " + ex.Message); }
     }
 
     /// <summary>窗口被激活（用户切回本软件）时补刷，保证"看它的时候总是新的"。</summary>
@@ -104,6 +144,7 @@ public partial class MainWindow : Window
     /// <summary>窗口关闭：按设置决定是最小化到托盘还是退出程序（真正的收尾由 App.OnExit 统一做）。</summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        SaveColumnWidths(); // 隐藏到托盘与真正退出都会经过这里，顺路记忆列宽
         base.OnClosing(e);
         if (App.AllowClose) return; // 已在退出流程中（托盘菜单退出）
 

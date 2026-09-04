@@ -72,7 +72,7 @@
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   MouseDoubleClick="Grid_MouseDoubleClick"
-                                  Background="Transparent" BorderThickness="0"
+                                  Background="Transparent" BorderThickness="0" CanUserResizeColumns="True"
                                   CanUserResizeRows="False" RowHeaderWidth="0">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
@@ -90,9 +90,9 @@
                                 </ContextMenu>
                             </DataGrid.ContextMenu>
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="时间" Binding="{Binding TimeDisplay}" Width="146"
+                                <DataGridTextColumn Header="时间" Binding="{Binding TimeDisplay}" Width="146" MinWidth="110"
                                                     ElementStyle="{StaticResource TimeCell}"/>
-                                <DataGridTemplateColumn Header="类型" Width="76">
+                                <DataGridTemplateColumn Header="类型" Width="76" MinWidth="64">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <Border Background="{Binding TypeBadgeBrush}" CornerRadius="999"
@@ -104,9 +104,9 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*"
+                                <DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*" MinWidth="100"
                                                     ElementStyle="{StaticResource NameCell}"/>
-                                <DataGridTemplateColumn Header="大小 / 版本" Width="170">
+                                <DataGridTemplateColumn Header="大小 / 版本" Width="170" MinWidth="90">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">
@@ -124,9 +124,9 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTextColumn Header="路径 / 网址" Binding="{Binding Location}" Width="300"
+                                <DataGridTextColumn Header="路径 / 网址" Binding="{Binding Location}" Width="300" MinWidth="120"
                                                     ElementStyle="{StaticResource LocationCell}"/>
-                                <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="130"
+                                <DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="130" MinWidth="80"
                                                     ElementStyle="{StaticResource NoteCell}"/>
                             </DataGrid.Columns>
                         </DataGrid>
