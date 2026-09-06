@@ -126,6 +126,27 @@ public partial class MainWindow : Window
             _vm.Stats?.Refresh();
     }
 
+    /// <summary>右键即选中所在行：WPF 默认右键不改选中行，若不处理，
+    /// 右键 A 行的菜单实际操作的是旧选中行 B，用户会误以为功能失效。</summary>
+    private void Grid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject d)
+        {
+            var row = FindAncestorOfType<DataGridRow>(d);
+            if (row?.Item != null) Grid.SelectedItem = row.Item;
+        }
+    }
+
+    private static T? FindAncestorOfType<T>(DependencyObject o) where T : DependencyObject
+    {
+        while (o != null)
+        {
+            if (o is T t) return t;
+            o = System.Windows.Media.VisualTreeHelper.GetParent(o);
+        }
+        return null;
+    }
+
     /// <summary>双击行：跳转关联或打开位置。</summary>
     private void Grid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         => _vm.OpenOrJump(Grid.SelectedItem as ActivityEventItem);

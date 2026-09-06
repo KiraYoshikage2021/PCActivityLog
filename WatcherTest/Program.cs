@@ -1,8 +1,7 @@
-// 隔离验证：表头抓手（1）框架挂钩链路（2）真实合成输入拖拽
+// 隔离验证：右键菜单 Command / CommandParameter 绑定是否解析（真实样式）
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Media;
+using System.Windows.Data;
 using System.Windows.Threading;
 
 var t = new Thread(() =>
@@ -11,45 +10,46 @@ var t = new Thread(() =>
     var light = new ResourceDictionary { Source = new Uri("pack://application:,,,/PCActivityLog;component/Themes/Light.xaml") };
     var ctrl = new ResourceDictionary { Source = new Uri("pack://application:,,,/PCActivityLog;component/Themes/Controls.xaml") };
 
-    var grid = new DataGrid { AutoGenerateColumns = false, CanUserResizeColumns = true, Height = 300, Width = 700 };
-    grid.Columns.Add(new DataGridTextColumn { Header = "时间", Binding = new System.Windows.Data.Binding("A"), Width = new DataGridLength(146), MinWidth = 110 });
-    grid.Columns.Add(new DataGridTextColumn { Header = "名称", Binding = new System.Windows.Data.Binding("B"), Width = new DataGridLength(200), MinWidth = 100 });
-    grid.Columns.Add(new DataGridTextColumn { Header = "备注", Binding = new System.Windows.Data.Binding("C"), Width = new DataGridLength(130), MinWidth = 80 });
-    grid.ItemsSource = new[] { new { A = "2026-01-01", B = "样本甲", C = "备注1" }, new { A = "2026-01-02", B = "样本乙", C = "备注2" } }.ToList();
+    var vm = new Vm();
+    vm.Rows.Add(new Row()); vm.Rows.Add(new Row());
 
-    var win = new Window { Content = grid, Width = 760, Height = 380, Title = "gripper-test" };
+    var grid = new DataGrid { AutoGenerateColumns = false, Height = 260, Width = 640 };
+    grid.Columns.Add(new DataGridTextColumn { Header = "时间", Binding = new Binding("Time"), Width = new DataGridLength(150) });
+    grid.Columns.Add(new DataGridTextColumn { Header = "名称", Binding = new Binding("Name"), Width = new DataGridLength(200) });
+
+    // 与主程序 MainWindow.xaml 完全一致的右键菜单结构
+    var menu = new ContextMenu();
+    var mi = new MenuItem { Header = "打开文件位置 / 网址" };
+    mi.SetBinding(MenuItem.CommandProperty, new Binding("OpenLocationCommand"));
+    mi.SetBinding(MenuItem.CommandParameterProperty,
+        new Binding("PlacementTarget.SelectedItem") { RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(ContextMenu), 1) });
+    menu.Items.Add(mi);
+    grid.ContextMenu = menu;
+    grid.ItemsSource = vm.Rows;
+    grid.DataContext = vm;
+
+    var win = new Window { Content = grid, Width = 700, Height = 340, Title = "ctxmenu-test" };
     win.Resources.MergedDictionaries.Add(light);
     win.Resources.MergedDictionaries.Add(ctrl);
     win.Show();
-    win.Activate();
-    for (int i = 0; i < 30; i++) DoEvents();
-    System.Threading.Thread.Sleep(300);
+    for (int i = 0; i < 20; i++) DoEvents();
 
-    var header = FindVisual<DataGridColumnHeader>(grid).First(h => h.Column?.Header as string == "时间");
-    var grip = FindVisual<Thumb>(header).First(x => x.Name == "PART_RightHeaderGripper");
+    // 选中第一行，程序化打开右键菜单（等价于用户右键）
+    grid.SelectedItem = vm.Rows[0];
+    grid.ContextMenu.PlacementTarget = grid;
+    grid.ContextMenu.IsOpen = true;
+    for (int i = 0; i < 20; i++) DoEvents();
 
-    // 抓手中心 → 屏幕坐标
-    var local = new Point(grip.ActualWidth / 2, grip.ActualHeight / 2);
-    var screenPt = grip.TransformToAncestor(win).Transform(local);
-    var hwndSrc = (System.Windows.Interop.HwndSource)PresentationSource.FromVisual(win);
-    var screen = hwndSrc.CompositionTarget.TransformToDevice.Transform(screenPt);
-    int sx = (int)screen.X, sy = (int)screen.Y;
-    Console.WriteLine($"[host] 抓手屏幕坐标: ({sx},{sy}) 窗口激活={win.IsActive}");
+    var beCmd = mi.GetBindingExpression(MenuItem.CommandProperty);
+    var bePar = mi.GetBindingExpression(MenuItem.CommandParameterProperty);
+    Console.WriteLine($"[绑定] Command 状态={beCmd?.Status} 值={(mi.Command != null ? "OK" : "null")}");
+    Console.WriteLine($"[绑定] CommandParameter 状态={bePar?.Status} 值={(mi.CommandParameter?.GetType().Name ?? "null")}");
+    Console.WriteLine($"[菜单] IsOpen={menu.IsOpen} MenuItem启用={mi.IsEnabled}");
 
-    // Win32 合成拖拽（与主程序冒烟同款手法）
-    Win32.SetCursorPos(sx, sy);
-    System.Threading.Thread.Sleep(150);
-    Win32.mouse_event(2, 0, 0, 0, UIntPtr.Zero);
-    System.Threading.Thread.Sleep(120);
-    for (int i = 0; i < 10; i++) { Win32.mouse_event(1, 5, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(60); }
-    System.Threading.Thread.Sleep(250);
-    Win32.mouse_event(4, 0, 0, 0, UIntPtr.Zero);
-    for (int i = 0; i < 30; i++) DoEvents();
+    // 直接程序化调用命令（模拟点击菜单项）
+    mi.Command?.Execute(mi.CommandParameter);
 
-    var w2 = header.Column!.Width.Value;
-    Console.WriteLine(w2 > 150
-        ? $"[PASS] 真实合成输入拖拽成功，列宽 146 -> {w2:F0}"
-        : $"[FAIL] 合成输入未生效，列宽仍为 {w2:F0}（框架链路正常，属输入注入限制）");
+    menu.IsOpen = false;
     Console.WriteLine("[host] 完成");
     app.Shutdown();
 });
@@ -64,18 +64,17 @@ static void DoEvents()
     Dispatcher.PushFrame(f);
 }
 
-static IEnumerable<T> FindVisual<T>(DependencyObject root) where T : DependencyObject
+public class Vm
 {
-    for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
-    {
-        var c = VisualTreeHelper.GetChild(root, i);
-        if (c is T hit) yield return hit;
-        foreach (var x in FindVisual<T>(c)) yield return x;
-    }
+    public System.Windows.Input.ICommand OpenLocationCommand { get; } = new RlyCmd(_ => Console.WriteLine("[CMD] OpenLocationCommand 被执行! 参数=" + _?.GetType().Name));
+    public System.Collections.ObjectModel.ObservableCollection<Row> Rows { get; } = new();
 }
-
-static class Win32
+public class Row { public string Time { get; set; } = "2026-09-04"; public string Name { get; set; } = "样本文件.txt"; }
+public class RlyCmd : System.Windows.Input.ICommand
 {
-    [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
-    [System.Runtime.InteropServices.DllImport("user32.dll")] public static extern void mouse_event(uint f, int dx, int dy, uint data, UIntPtr extra);
+    private readonly Action<object?> _a;
+    public RlyCmd(Action<object?> a) => _a = a;
+    public event EventHandler? CanExecuteChanged { add { } remove { } }
+    public bool CanExecute(object? p) { Console.WriteLine("[CMD] CanExecute 参数=" + (p?.GetType().Name ?? "null")); return true; }
+    public void Execute(object? p) => _a(p);
 }

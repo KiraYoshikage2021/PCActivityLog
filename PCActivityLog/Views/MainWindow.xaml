@@ -72,19 +72,20 @@
                                   VirtualizingPanel.IsVirtualizing="True"
                                   VirtualizingPanel.VirtualizationMode="Recycling"
                                   MouseDoubleClick="Grid_MouseDoubleClick"
+                                  PreviewMouseRightButtonDown="Grid_PreviewMouseRightButtonDown"
                                   Background="Transparent" BorderThickness="0" CanUserResizeColumns="True"
                                   CanUserResizeRows="False" RowHeaderWidth="0">
                             <DataGrid.ContextMenu>
                                 <ContextMenu>
                                     <MenuItem Header="打开文件位置 / 网址"
                                               Command="{Binding OpenLocationCommand}"
-                                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     <MenuItem Header="编辑备注"
                                               Command="{Binding EditNoteCommand}"
-                                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     <MenuItem Header="跳到来源安装包"
                                               Command="{Binding JumpLinkedCommand}"
-                                              CommandParameter="{Binding SelectedItem, RelativeSource={RelativeSource AncestorType=DataGrid}}"/>
+                                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
                                     <Separator/>
                                     <MenuItem Header="复制名称" Click="CopyName_Click"/>
                                 </ContextMenu>
