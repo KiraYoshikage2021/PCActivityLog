@@ -83,13 +83,15 @@
                 <controls:DataGrid.Columns>
                     <controls:DataGridTextColumn Header="时间" Binding="{Binding TimeDisplay}" Width="150" MinWidth="110"
                                                 />
-                    <controls:DataGridTemplateColumn Header="类型" Width="90" MinWidth="70">
+                    <controls:DataGridTemplateColumn Header="类型" Width="84" MinWidth="70">
                         <controls:DataGridTemplateColumn.CellTemplate>
                             <DataTemplate x:DataType="vm:ActivityEventItem">
-                                <Border Background="{x:Bind TypeBadgeBrush}" CornerRadius="999"
-                                        Padding="9,3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <!-- 小圆角 tag（非胶囊）+ 同色系细描边 -->
+                                <Border Background="{x:Bind TypeBadgeBrush}" CornerRadius="4"
+                                        BorderBrush="{x:Bind TypeBrush}" BorderThickness="1"
+                                        Padding="7,2" HorizontalAlignment="Left" VerticalAlignment="Center">
                                     <TextBlock Text="{x:Bind TypeDisplay}" Foreground="{x:Bind TypeBrush}"
-                                               FontSize="12" FontWeight="SemiBold"/>
+                                               FontSize="11.5" FontWeight="SemiBold"/>
                                 </Border>
                             </DataTemplate>
                         </controls:DataGridTemplateColumn.CellTemplate>

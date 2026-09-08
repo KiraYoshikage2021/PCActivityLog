@@ -27,11 +27,17 @@
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.1.2" />
     <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.0" />
   </ItemGroup>
-  <!-- WinUI3 dotnet publish 缺陷：XAML 产物(.xbf/.pri)不随发布复制 -->
+  <!-- app.ico 必须随输出复制到根目录：ApplicationIcon 只嵌入 exe，AppWindow.SetIcon 需要文件路径 -->
+  <ItemGroup>
+    <Content Include="Assets\app.ico" Link="app.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- WinUI3 dotnet publish 缺陷：XAML 产物(.xbf/.pri) 与 app.ico 不随发布复制 -->
   <Target Name="CopyXamlArtifactsOnPublish" AfterTargets="Publish">
     <ItemGroup>
       <XamlArtifacts Include="$(TargetDir)*.xbf;$(TargetDir)*.pri" />
+      <IconArtifact Include="$(TargetDir)app.ico" Condition="Exists('$(TargetDir)app.ico')" />
     </ItemGroup>
     <Copy SourceFiles="@(XamlArtifacts)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="false" />
+    <Copy SourceFiles="@(IconArtifact)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="false" />
   </Target>
 </Project>

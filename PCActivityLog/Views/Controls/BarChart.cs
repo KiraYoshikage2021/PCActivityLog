@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using PCActivityLog.Services;
 using PCActivityLog.ViewModels;
+using Windows.UI;
 
 namespace PCActivityLog.Views.Controls;
 
@@ -63,7 +64,7 @@ public sealed class BarChart : ContentControl
         double W = ActualWidth, H = ActualHeight;
         if (W < 20 || H < 20) return;
 
-        const double labelH = 20, topPad = 14;
+        const double labelH = 20, topPad = 16;
         double chartH = H - labelH - topPad;
         if (chartH < 20) return;
 
@@ -71,44 +72,57 @@ public sealed class BarChart : ContentControl
         if (max <= 0) max = 1;
 
         double colSpace = W / columns.Count;
-        double barW = Math.Min(46, colSpace * 0.55);
+        double barW = Math.Min(44, colSpace * 0.52);
         var labelBrush = ThemeService.FindBrush("ChartTextBrush");
 
         for (int i = 0; i < columns.Count; i++)
         {
             var col = columns[i];
             double x = i * colSpace + (colSpace - barW) / 2;
-            double usedH = 0;
 
-            // 自下而上堆叠
-            foreach (var seg in col.Segments)
+            // 先算出每段的高度（含最小高度保护 + 段间距），再自下而上绘制
+            var visible = col.Segments.Where(s => s.Value > 0).ToList();
+            const double segGap = 2; // 段间距
+            var heights = visible.Select(s => Math.Max(3, chartH * (s.Value / max))).ToArray();
+
+            double usedH = 0;
+            for (int k = 0; k < visible.Count; k++)
             {
-                if (seg.Value <= 0) continue;
-                double h = chartH * (seg.Value / max);
+                var seg = visible[k];
+                double h = heights[k];
+                bool isTop = k == visible.Count - 1;
+
                 var rect = new Rectangle
                 {
                     Width = barW,
                     Height = h,
-                    Fill = seg.Color,
+                    // 渐变：同色系上浅下深（顶端提亮 18%，底端原色）
+                    Fill = MakeGradient(seg.Color),
+                    // 只有最顶段加圆角（8px，不超过柱宽一半），其余保持直角以便堆叠贴合
+                    RadiusX = isTop ? Math.Min(8, barW / 2) : 0,
+                    RadiusY = isTop ? Math.Min(8, barW / 2) : 0,
                 };
                 Canvas.SetLeft(rect, x);
                 Canvas.SetTop(rect, topPad + chartH - usedH - h);
+                ToolTipService.SetToolTip(rect, $"{col.Label}  {seg.Legend} {seg.Value:N0}");
                 _canvas.Children.Add(rect);
-                usedH += h;
+
+                usedH += h + (k < visible.Count - 1 ? segGap : 0);
             }
 
-            // 顶部总数
+            // 顶部总数（放在柱顶上方）
             if (col.Total > 0)
             {
                 var total = new TextBlock
                 {
                     Text = col.Total.ToString("N0"),
                     FontSize = 11,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                     Foreground = labelBrush,
                 };
                 total.Measure(new Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
                 Canvas.SetLeft(total, x + (barW - total.DesiredSize.Width) / 2);
-                Canvas.SetTop(total, topPad + chartH - usedH - total.DesiredSize.Height - 2);
+                Canvas.SetTop(total, topPad + chartH - (usedH - (visible.Count > 0 ? segGap : 0)) - total.DesiredSize.Height - 2);
                 _canvas.Children.Add(total);
             }
 
@@ -124,5 +138,27 @@ public sealed class BarChart : ContentControl
             Canvas.SetTop(label, topPad + chartH + (labelH - label.DesiredSize.Height) / 2);
             _canvas.Children.Add(label);
         }
+    }
+
+    /// <summary>把纯色转成垂直渐变（上浅下深），让柱子有立体感。</summary>
+    private static Brush MakeGradient(Brush baseBrush)
+    {
+        if (baseBrush is not SolidColorBrush solid) return baseBrush;
+        var c = solid.Color;
+        var top = Windows.UI.Color.FromArgb(c.A,
+            (byte)Math.Min(255, c.R + (255 - c.R) * 0.22),
+            (byte)Math.Min(255, c.G + (255 - c.G) * 0.22),
+            (byte)Math.Min(255, c.B + (255 - c.B) * 0.22));
+        var grad = new LinearGradientBrush
+        {
+            StartPoint = new Windows.Foundation.Point(0, 0),
+            EndPoint = new Windows.Foundation.Point(0, 1),
+            GradientStops =
+            {
+                new GradientStop { Color = top, Offset = 0 },
+                new GradientStop { Color = c, Offset = 1 },
+            },
+        };
+        return grad;
     }
 }

@@ -33,6 +33,15 @@ public enum EventType
     /// <summary>电脑关机</summary>
     Shutdown,
 
+    /// <summary>电脑重启（用户发起，来自 1074 事件）</summary>
+    Restart,
+
+    /// <summary>睡眠/休眠（来自 Kernel-Power 42；快速启动的"关机"实际走这条）</summary>
+    Sleep,
+
+    /// <summary>从睡眠/休眠中唤醒（来自 Kernel-Power 107）</summary>
+    Wake,
+
     /// <summary>浏览器网页访问</summary>
     Browse,
 
@@ -55,6 +64,9 @@ public static class EventTypeExtensions
         EventType.Uninstall => "uninstall",
         EventType.Boot => "boot",
         EventType.Shutdown => "shutdown",
+        EventType.Restart => "restart",
+        EventType.Sleep => "sleep",
+        EventType.Wake => "wake",
         EventType.Browse => "browse",
         EventType.Manual => "manual",
         _ => t.ToString().ToLowerInvariant(),
@@ -72,6 +84,9 @@ public static class EventTypeExtensions
         "uninstall" => EventType.Uninstall,
         "boot" => EventType.Boot,
         "shutdown" => EventType.Shutdown,
+        "restart" => EventType.Restart,
+        "sleep" => EventType.Sleep,
+        "wake" => EventType.Wake,
         "browse" => EventType.Browse,
         "manual" => EventType.Manual,
         _ => EventType.Manual,
@@ -89,6 +104,9 @@ public static class EventTypeExtensions
         EventType.Uninstall => "卸载",
         EventType.Boot => "开机",
         EventType.Shutdown => "关机",
+        EventType.Restart => "重启",
+        EventType.Sleep => "睡眠",
+        EventType.Wake => "唤醒",
         EventType.Browse => "浏览",
         EventType.Manual => "手动",
         _ => t.ToString(),
@@ -101,7 +119,8 @@ public static class EventTypeExtensions
         EventType.FileDelete or EventType.FileRename => EventGroup.FileOps,
         EventType.ImFile => EventGroup.ImFile,
         EventType.Install or EventType.Update or EventType.Uninstall => EventGroup.App,
-        EventType.Boot or EventType.Shutdown => EventGroup.System,
+        EventType.Boot or EventType.Shutdown or EventType.Restart
+            or EventType.Sleep or EventType.Wake => EventGroup.System,
         EventType.Browse => EventGroup.Browse,
         EventType.Manual => EventGroup.Manual,
         _ => EventGroup.Manual,
@@ -148,13 +167,14 @@ public static class EventGroupExtensions
             EventGroup.AllNoBrowse => new[] // 全部但不含浏览（默认视图）
             {
                 "download", "file_delete", "file_rename", "im_file",
-                "install", "update", "uninstall", "boot", "shutdown", "manual",
+                "install", "update", "uninstall",
+                "boot", "shutdown", "restart", "sleep", "wake", "manual",
             },
             EventGroup.Download => new[] { "download" },
             EventGroup.FileOps => new[] { "file_delete", "file_rename" },
             EventGroup.ImFile => new[] { "im_file" },
             EventGroup.App => new[] { "install", "update", "uninstall" },
-            EventGroup.System => new[] { "boot", "shutdown" },
+            EventGroup.System => new[] { "boot", "shutdown", "restart", "sleep", "wake" },
             EventGroup.Browse => new[] { "browse" },
             EventGroup.Manual => new[] { "manual" },
             _ => Array.Empty<string>(), // All = 空 = 不过滤（含浏览）

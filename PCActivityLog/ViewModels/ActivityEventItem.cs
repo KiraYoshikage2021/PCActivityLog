@@ -121,6 +121,9 @@ public class ActivityEventItem
         EventType.Uninstall => Color.FromArgb(255, 0xDC, 0x26, 0x26),
         EventType.Boot => Color.FromArgb(255, 0x7C, 0x3A, 0xED),
         EventType.Shutdown => Color.FromArgb(255, 0x93, 0x33, 0xEA),
+        EventType.Restart => Color.FromArgb(255, 0x6D, 0x28, 0xD9),
+        EventType.Sleep => Color.FromArgb(255, 0x63, 0x66, 0xF1),
+        EventType.Wake => Color.FromArgb(255, 0x14, 0xB8, 0xA6),
         EventType.Browse => Color.FromArgb(255, 0x08, 0x91, 0xB2),
         _ => Color.FromArgb(255, 0x52, 0x52, 0x52),
     };

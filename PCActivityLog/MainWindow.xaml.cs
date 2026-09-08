@@ -25,13 +25,14 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         TryEnableMica();
+        ApplyWindowIcon(); // 窗口/任务栏图标（WinUI3 需显式设置）
         ThemeService.Apply(App.Settings!, this);
         ThemeService.ThemeChanged += OnThemeChanged;
 
         SetupTray();
 
-        // 启动即加载时间线页（Frame 默认空白，必须显式导航）
-        ContentFrame.Navigate(typeof(TimelinePage));
+        // 初始页由 XAML 中 NavigationViewItem 的 IsSelected="True" 触发 SelectionChanged 加载；
+        // 这里不再重复 Navigate，避免与 SelectionChanged 竞争导致内容与高亮不一致。
 
         if (App.StartMinimized) HideToTray();
     }
@@ -52,6 +53,61 @@ public sealed partial class MainWindow : Window
         catch { }
     }
 
+    // ---------- 图标 ----------
+
+    /// <summary>定位 app.ico：优先 exe 同目录（发布版），回退到源码 Assets 目录（开发时）。</summary>
+    private static string? ResolveIconPath()
+    {
+        var exeDir = Path.GetDirectoryName(Environment.ProcessPath);
+        if (exeDir != null)
+        {
+            var p = Path.Combine(exeDir, "app.ico");
+            if (File.Exists(p)) return p;
+        }
+        // 开发态：从 bin/.../win-x64 往上找到工程根下的 Assets/app.ico
+        var probe = new DirectoryInfo(AppContext.BaseDirectory);
+        for (int i = 0; i < 6 && probe != null; i++, probe = probe.Parent)
+        {
+            var p = Path.Combine(probe.FullName, "Assets", "app.ico");
+            if (File.Exists(p)) return p;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// 设置窗口/任务栏图标（WinUI3 必须显式调用，否则标题栏左上角不显示图标）。
+    /// 用 AppWindow.SetIcon 指定 ico 文件，系统会按 DPI 自动选帧。
+    /// </summary>
+    private void ApplyWindowIcon()
+    {
+        try
+        {
+            var icoPath = ResolveIconPath();
+            if (icoPath == null) { DiagnosticsLog.Warn("未找到 app.ico，窗口图标未设置"); return; }
+            AppWindow.SetIcon(icoPath);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsLog.Error("设置窗口图标失败", ex);
+        }
+    }
+
+    /// <summary>取托盘图标尺寸（跟随 DPI：100%=16px，150%=24px）。不引 WinForms，直接算。</summary>
+    private static System.Drawing.Size GetTrayIconSize()
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance!);
+            uint dpi = GetDpiForWindow(hwnd);
+            var px = dpi == 0 ? 16 : (int)Math.Round(16.0 * dpi / 96.0);
+            return new System.Drawing.Size(px, px);
+        }
+        catch { return new System.Drawing.Size(16, 16); }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
     // ---------- 托盘（纯代码） ----------
 
     private void SetupTray()
@@ -64,14 +120,34 @@ public sealed partial class MainWindow : Window
                 NoLeftClickDelay = true,
             };
 
-            // 图标：从 exe 关联图标加载
+            // 图标：优先用 app.ico 精确取托盘尺寸帧（16/24px），保证小图标清晰；
+            // ExtractAssociatedIcon 只取单一尺寸且不按 DPI 选帧，小图标会发虚。
             try
             {
-                var exePath = Environment.ProcessPath;
-                if (exePath != null)
-                    _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                var icoPath = ResolveIconPath();
+                if (icoPath != null && File.Exists(icoPath))
+                {
+                    // 按系统托盘图标尺寸取帧（100% DPI=16px，150%=24px）
+                    var size = GetTrayIconSize();
+                    _tray.Icon = new System.Drawing.Icon(icoPath, size);
+                }
+                else
+                {
+                    var exePath = Environment.ProcessPath;
+                    if (exePath != null)
+                        _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DiagnosticsLog.Warn("托盘图标加载失败，尝试 exe 关联图标: " + ex.Message);
+                try
+                {
+                    var exePath = Environment.ProcessPath;
+                    if (exePath != null) _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
+                }
+                catch (Exception ex2) { DiagnosticsLog.Error("托盘图标回退也失败", ex2); }
+            }
 
             var menu = new MenuFlyout();
             var show = new MenuFlyoutItem { Text = "显示主窗口" };
