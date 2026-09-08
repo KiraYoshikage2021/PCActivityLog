@@ -90,17 +90,19 @@ public sealed class BarChart : ContentControl
             {
                 var seg = visible[k];
                 double h = heights[k];
-                bool isTop = k == visible.Count - 1;
+
+                // 每段都做圆角（圆角块堆叠，现代观感）；
+                // 半径取 4px 且不超过段高一半/柱宽一半，避免小段被切变形
+                double r = Math.Min(4, Math.Min(barW / 2, h / 2));
 
                 var rect = new Rectangle
                 {
                     Width = barW,
                     Height = h,
-                    // 渐变：同色系上浅下深（顶端提亮 18%，底端原色）
+                    // 渐变：同色系上浅下深
                     Fill = MakeGradient(seg.Color),
-                    // 只有最顶段加圆角（8px，不超过柱宽一半），其余保持直角以便堆叠贴合
-                    RadiusX = isTop ? Math.Min(8, barW / 2) : 0,
-                    RadiusY = isTop ? Math.Min(8, barW / 2) : 0,
+                    RadiusX = r,
+                    RadiusY = r,
                 };
                 Canvas.SetLeft(rect, x);
                 Canvas.SetTop(rect, topPad + chartH - usedH - h);

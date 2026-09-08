@@ -95,11 +95,13 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border CornerRadius="999" Padding="10,3" BorderThickness="1"
-                                            BorderBrush="{Binding Color}">
-                                        <TextBlock Text="{Binding Legend}" FontSize="11"
-                                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
-                                    </Border>
+                                    <!-- 图例：彩色圆点 + 文字（不再用椭圆描边胶囊） -->
+                                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                        <Ellipse Width="8" Height="8" Fill="{Binding Color}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Legend}" FontSize="11.5"
+                                                   Foreground="{ThemeResource TextSecondaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
