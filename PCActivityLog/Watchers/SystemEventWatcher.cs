@@ -93,8 +93,10 @@ public class SystemEventWatcher : IWatcherModule
                 while (reader.ReadEvent() is { } rec)
                 {
                     if (rec.TimeCreated?.ToLocalTime() is not { } t) continue;
-                    // 反向读取：一旦遇到不晚于游标的事件，后面的只会更旧，可以安全停止
-                    if (cursorTime.HasValue && t <= cursorTime) break;
+                    // 反向读取：一旦遇到不晚于游标的事件，后面的只会更旧，可以安全停止。
+                    // 注意用秒精度比较：数据库 occurred_at 只存到秒，
+                    // 若用毫秒比较，同一秒内毫秒更大的事件会被误判为新事件而重复入库。
+                    if (cursorTime.HasValue && TruncateToSecond(t) <= TruncateToSecond(cursorTime.Value)) break;
 
                     collected.Add((t, rec.Id, SafeMessage(rec)));
                     if (collected.Count >= 500) break; // 防御性上限（正常远达不到）
@@ -111,14 +113,14 @@ public class SystemEventWatcher : IWatcherModule
             if (collected.Count > 0)
             {
                 var last = collected.Max(x => x.time);
-                // 毫秒精度，避免边界事件被秒级截断重复或漏记
-                _db.SetState(CursorKey, last.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                // 游标用秒精度，与数据库 occurred_at 保持一致（避免毫秒边界导致重复）
+                _db.SetState(CursorKey, last.ToString("yyyy-MM-dd HH:mm:ss"));
                 DiagnosticsLog.Info($"系统监视回填 {collected.Count} 条开关机/睡眠事件");
             }
             else if (cursorTime is null)
             {
                 // 首次运行无数据也写游标，避免下次全量扫描
-                _db.SetState(CursorKey, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+                _db.SetState(CursorKey, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
             }
         }
         catch (Exception ex)
@@ -142,7 +144,10 @@ public class SystemEventWatcher : IWatcherModule
         }
     }
 
-    /// <summary>实时事件回调（try/catch 包裹 + 推进游标）。</summary>
+    /// <summary>
+    /// 实时事件回调（try/catch 包裹 + 推进游标）。
+    /// 去重：同一时刻同一类型只记一次（EventLogWatcher 可能对同一事件多次回调）。
+    /// </summary>
     private void OnEvent(object? sender, EventRecordWrittenEventArgs e)
     {
         try
@@ -151,15 +156,38 @@ public class SystemEventWatcher : IWatcherModule
             var t = rec?.TimeCreated?.ToLocalTime();
             if (rec is null || t is null) return;
 
+            // 实时去重：同一秒 + 同一事件 ID 只处理一次
+            var dedupeKey = $"{rec.Id}@{TruncateToSecond(t.Value):yyyy-MM-dd HH:mm:ss}";
+            lock (_liveDedupe)
+            {
+                if (_liveDedupe.Contains(dedupeKey)) return;
+                _liveDedupe.Add(dedupeKey);
+                // 限制去重表大小，防止长期运行无限增长
+                if (_liveDedupe.Count > 500)
+                {
+                    var keep = _liveDedupe.OrderByDescending(k => k).Take(250).ToList();
+                    _liveDedupe.Clear();
+                    foreach (var k in keep) _liveDedupe.Add(k);
+                }
+            }
+
             var ev = ToEvent(t.Value, rec.Id, SafeMessage(rec));
             if (ev != null) _sink.Dispatch(ev);
-            _db.SetState(CursorKey, t.Value.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            // 游标用秒精度，与数据库 occurred_at 一致
+            _db.SetState(CursorKey, TruncateToSecond(t.Value).ToString("yyyy-MM-dd HH:mm:ss"));
         }
         catch (Exception ex)
         {
             DiagnosticsLog.Error("处理系统事件异常", ex);
         }
     }
+
+    /// <summary>实时事件去重表（同一秒同一事件 ID 只记一次）。</summary>
+    private readonly HashSet<string> _liveDedupe = new();
+
+    /// <summary>截断到秒（数据库 occurred_at 的精度）。</summary>
+    private static DateTime TruncateToSecond(DateTime t)
+        => new(t.Year, t.Month, t.Day, t.Hour, t.Minute, t.Second);
 
     /// <summary>安全读取事件消息（缺消息 DLL 时会抛异常）。</summary>
     private static string? SafeMessage(EventRecord rec)
