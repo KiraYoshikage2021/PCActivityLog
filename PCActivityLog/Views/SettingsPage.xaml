@@ -68,7 +68,7 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="注册表轮询间隔（秒，10-3600）：" Style="{StaticResource LabelText}"/>
-                            <TextBox x:Name="RegistryPollSeconds" Width="90" VerticalAlignment="Center"/>
+                            <TextBox x:Name="RegistryPollSeconds" Width="90" VerticalAlignment="Center" LostFocus="Interval_LostFocus"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -94,7 +94,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="添加路径" Click="AddImFolder_Click"/>
                             <Button Content="删除选中" Click="RemoveImFolder_Click"/>
-                            <TextBlock Text="改动后需点「应用更改」" FontSize="11.5" VerticalAlignment="Center"
+                            <TextBlock Text="改动立即生效" FontSize="11.5" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextTertiaryBrush}"/>
                         </StackPanel>
                         <TextBlock Text="文件被清理后记录会自动标注「已清理」。"
@@ -130,7 +130,7 @@
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <TextBlock Text="下载落盘判定等待（秒，2-60）：" Style="{StaticResource LabelText}"/>
-                            <TextBox x:Name="SettleSeconds" Width="90" VerticalAlignment="Center"/>
+                            <TextBox x:Name="SettleSeconds" Width="90" VerticalAlignment="Center" LostFocus="Interval_LostFocus"/>
                         </StackPanel>
                         <TextBlock Text="监视的文件夹：" Style="{StaticResource LabelText}"/>
                         <ListView x:Name="FolderList" Height="110" SelectionMode="Single"
@@ -138,7 +138,7 @@
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Content="添加文件夹" Click="AddFolder_Click"/>
                             <Button Content="删除选中" Click="RemoveFolder_Click"/>
-                            <TextBlock Text="改动后需点下方「应用更改」" FontSize="11.5" VerticalAlignment="Center"
+                            <TextBlock x:Name="HintText" Text="改动立即生效" FontSize="11.5" VerticalAlignment="Center"
                                        Foreground="{ThemeResource TextTertiaryBrush}"/>
                         </StackPanel>
                     </StackPanel>
@@ -166,13 +166,6 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
-
-                <!-- 操作按钮 -->
-                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,16">
-                    <Button Content="应用更改（文件夹 / 间隔）" Click="Apply_Click" Style="{StaticResource AccentButtonStyle}"/>
-                    <TextBlock x:Name="ApplyHint" VerticalAlignment="Center" FontSize="12"
-                               Foreground="{ThemeResource StatGreenBrush}"/>
-                </StackPanel>
             </StackPanel>
         </Grid>
     </ScrollViewer>

@@ -210,6 +210,7 @@ public sealed partial class SettingsPage : Page
         {
             _s.WatchedFolders.Add(folder.Path);
             RefreshFolderList();
+            SaveAndRestartFileModule();
         }
     }
 
@@ -217,9 +218,29 @@ public sealed partial class SettingsPage : Page
     {
         if (FolderList.SelectedItem is string path)
         {
+            if (_s.WatchedFolders.Count <= 1)
+            {
+                ShowHint("至少保留一个监视文件夹");
+                return;
+            }
             _s.WatchedFolders.Remove(path);
             RefreshFolderList();
+            SaveAndRestartFileModule();
         }
+    }
+
+    /// <summary>保存并重启文件监视模块（文件夹变更后立即生效）。</summary>
+    private void SaveAndRestartFileModule()
+    {
+        _s.Save();
+        if (_s.ModuleFileEnabled) App.Manager?.RestartModule("file");
+        ShowHint("已生效 ✓");
+    }
+
+    /// <summary>在文件监视卡片下方显示一行操作反馈。</summary>
+    private void ShowHint(string text)
+    {
+        if (HintText != null) HintText.Text = text;
     }
 
     // ---------- 微信/QQ 自定义路径管理 ----------
@@ -245,37 +266,48 @@ public sealed partial class SettingsPage : Page
         {
             _s.ImFolders.Add(folder.Path);
             RefreshImFolderList();
+            _s.Save();
+            if (_s.ModuleImEnabled) App.Manager?.RestartModule("imfile"); // 立即生效
         }
     }
 
-    /// <summary>删除选中的 IM 监视路径。</summary>
+    /// <summary>删除选中的 IM 监视路径（立即生效）。</summary>
     private void RemoveImFolder_Click(object sender, RoutedEventArgs e)
     {
         if (ImFolderList.SelectedItem is string path)
         {
             _s.ImFolders.Remove(path);
             RefreshImFolderList();
+            _s.Save();
+            if (_s.ModuleImEnabled) App.Manager?.RestartModule("imfile");
         }
     }
 
-    // ---------- 应用更改 ----------
+    // ---------- 数值输入（失焦即保存生效） ----------
 
-    private void Apply_Click(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// 两个间隔输入框失焦时立即保存并重启对应模块（不再需要「应用更改」按钮）。
+    /// 输入非法时回退到原值，并钳制到合法范围。
+    /// </summary>
+    private void Interval_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (_s.WatchedFolders.Count == 0)
-        {
-            ApplyHint.Text = "至少保留一个监视文件夹";
-            return;
-        }
+        if (_loading) return;
 
-        _s.SettleSeconds = Math.Clamp(ParseInt(SettleSeconds.Text, _s.SettleSeconds), 2, 60);
-        _s.RegistryPollSeconds = Math.Clamp(ParseInt(RegistryPollSeconds.Text, _s.RegistryPollSeconds), 10, 3600);
+        var newSettle = Math.Clamp(ParseInt(SettleSeconds.Text, _s.SettleSeconds), 2, 60);
+        var newPoll = Math.Clamp(ParseInt(RegistryPollSeconds.Text, _s.RegistryPollSeconds), 10, 3600);
+
+        bool changed = newSettle != _s.SettleSeconds || newPoll != _s.RegistryPollSeconds;
+        _s.SettleSeconds = newSettle;
+        _s.RegistryPollSeconds = newPoll;
+
+        // 回显钳制后的值（用户输入越界时能看到实际生效值）
+        SettleSeconds.Text = newSettle.ToString();
+        RegistryPollSeconds.Text = newPoll.ToString();
+
+        if (!changed) return;
         _s.Save();
-
         if (_s.ModuleFileEnabled) App.Manager?.RestartModule("file");
         if (_s.ModuleAppEnabled) App.Manager?.RestartModule("app");
-        if (_s.ModuleImEnabled) App.Manager?.RestartModule("imfile"); // 自定义路径变更后重启 IM 模块
-
-        ApplyHint.Text = "设置已应用 ✓";
+        ShowHint("已生效 ✓");
     }
 }
