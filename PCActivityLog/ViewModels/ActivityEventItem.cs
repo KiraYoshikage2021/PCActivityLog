@@ -18,12 +18,11 @@ public class ActivityEventItem
     {
         Event = e;
 
-        // IM 文件按来源配色（微信绿/QQ蓝），其余按类型色
+        // 徽章配色：按类型/来源取色。画刷按颜色缓存复用，
+        // 避免每次刷新为数百行重复创建上千个 Brush 对象（侧边栏切换卡顿的主因）。
         var c = e.Type == EventType.ImFile ? ImColor(e.Source) : TypeColor(e.Type);
-
-        // 徽章配色：文字用基色（深色主题下提亮一档），底色用同色低透明度
-        TypeBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(c, 0.30f) : c);
-        TypeBadgeBrush = new SolidColorBrush(ThemeService.WithAlpha(c, ThemeService.IsDark ? (byte)0x3D : (byte)0x24));
+        TypeBrush = BrushCache.Get(ThemeService.IsDark ? ThemeService.Lighten(c, 0.30f) : c);
+        TypeBadgeBrush = BrushCache.Get(ThemeService.WithAlpha(c, ThemeService.IsDark ? (byte)0x3D : (byte)0x24));
 
         // 保存状态标识（仅 IM 文件有）：✔ 已保存 / ⚠ 已清理
         if (e.Type == EventType.ImFile)
@@ -31,12 +30,38 @@ public class ActivityEventItem
             var missing = e.GetExtraString("localStatus") == "missing";
             LocalStatusDisplay = missing ? "⚠ 已清理" : "✔ 已保存";
             var sc = missing ? Color.FromArgb(255, 0xD9, 0x77, 0x06) : Color.FromArgb(255, 0x16, 0xA3, 0x4A);
-            LocalStatusBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(sc, 0.25f) : sc);
+            LocalStatusBrush = BrushCache.Get(ThemeService.IsDark ? ThemeService.Lighten(sc, 0.25f) : sc);
         }
         else
         {
             LocalStatusDisplay = "";
-            LocalStatusBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            LocalStatusBrush = BrushCache.Transparent;
+        }
+    }
+
+    /// <summary>
+    /// 按颜色缓存 SolidColorBrush（进程内共享）。
+    /// 时间线一次加载数百行、每行需要 2~3 个画刷；不缓存会创建上千个对象，
+    /// 造成切换卡顿与内存压力。颜色种类有限，缓存上限很小，无泄漏风险。
+    /// </summary>
+    private static class BrushCache
+    {
+        private static readonly Dictionary<uint, SolidColorBrush> Cache = new();
+
+        /// <summary>透明画刷（全局复用同一实例）。</summary>
+        public static readonly SolidColorBrush Transparent = new(Microsoft.UI.Colors.Transparent);
+
+        /// <summary>取指定颜色的画刷（首次创建后缓存复用）。</summary>
+        public static SolidColorBrush Get(Color c)
+        {
+            var key = ((uint)c.A << 24) | ((uint)c.R << 16) | ((uint)c.G << 8) | c.B;
+            lock (Cache)
+            {
+                if (Cache.TryGetValue(key, out var b)) return b;
+                var brush = new SolidColorBrush(c);
+                Cache[key] = brush;
+                return brush;
+            }
         }
     }
 

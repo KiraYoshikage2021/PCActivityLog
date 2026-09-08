@@ -20,6 +20,7 @@ public sealed partial class TimelinePage : Page
     public TimelinePage()
     {
         Vm = new TimelineViewModel(App.Db!, App.WriteQueueInstance!, new ExportService(App.Db!));
+        App.TimelinePageVm = Vm; // 供退出时统一 Dispose（页面被缓存复用）
         InitializeComponent();
 
         Vm.ShowMessage = async (text, title) =>
@@ -36,9 +37,28 @@ public sealed partial class TimelinePage : Page
         Vm.SelectRequested = OnSelectRequested;
 
         ApplyColumnWidths();
-        Loaded += (_, _) => { Vm.Refresh(); Vm.RefreshIfIdle(); };
-        Unloaded += (_, _) => { SaveColumnWidths(); Vm.Dispose(); };
+
+        // 页面被 Frame 缓存（CacheSize=3），Loaded 会多次触发：
+        // 首次加载才查库，之后切回来只做轻量补刷（RefreshIfIdle 有 2 秒节流）。
+        Loaded += (_, _) =>
+        {
+            if (!_initialized)
+            {
+                _initialized = true;
+                Vm.Refresh();
+            }
+            else
+            {
+                Vm.RefreshIfIdle(); // 切回来时补刷新增事件，不重复全量查询
+            }
+        };
+
+        // 列宽在页面离开时保存；不在这里 Dispose（缓存页面会复用，解绑事件会导致自动刷新失效）
+        Unloaded += (_, _) => SaveColumnWidths();
     }
+
+    /// <summary>是否已完成首次数据加载（避免每次切页都全量查库）。</summary>
+    private bool _initialized;
 
     // ---------- 列宽记忆 ----------
 

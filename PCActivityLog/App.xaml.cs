@@ -17,6 +17,9 @@ public partial class App : Application
     public static Database? Db { get; private set; }
     public static WriteQueue? WriteQueueInstance { get; private set; }
     public static WatcherManager? Manager { get; private set; }
+
+    /// <summary>时间线页的 ViewModel 引用（页面被 Frame 缓存复用，退出时统一释放其事件订阅）。</summary>
+    public static ViewModels.TimelineViewModel? TimelinePageVm { get; set; }
     public static MainWindow? MainWindowInstance { get; private set; }
 
     /// <summary>允许真正退出（点关闭按钮时若设置最小化到托盘，则仅隐藏窗口）。</summary>
@@ -129,6 +132,7 @@ public partial class App : Application
         SafeRun("停止监视模块", () => Manager?.Dispose());
         SafeRun("停止数据清理", () => _retention?.Dispose());
         SafeRun("停止 IM 状态复查", () => _imStatus?.Dispose());
+        SafeRun("释放页面 ViewModel", () => TimelinePageVm?.Dispose());
         SafeRun("冲写数据库队列", () => WriteQueueInstance?.Dispose());
         SafeRun("释放托盘", () => MainWindowInstance?.DisposeTray());
         SafeRun("释放激活信号", () => _activateSignal?.Dispose());

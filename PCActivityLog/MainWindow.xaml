@@ -23,7 +23,8 @@
                 </NavigationViewItem>
             </NavigationView.MenuItems>
 
-            <Frame x:Name="ContentFrame" />
+            <!-- CacheSize=3：缓存页面实例，切换时不重建、不重新查库（解决侧边栏切换卡顿） -->
+            <Frame x:Name="ContentFrame" CacheSize="3" />
         </NavigationView>
     </Grid>
 </Window>
