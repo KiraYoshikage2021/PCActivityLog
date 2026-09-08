@@ -258,12 +258,7 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         if (item is null) return;
         try
         {
-            if (!string.IsNullOrEmpty(item.Event.Url) && string.IsNullOrEmpty(item.Event.Path)
-                && item.Event.Type == EventType.Browse)
-            {
-                await Windows.System.Launcher.LaunchUriAsync(new Uri(item.Event.Url));
-            }
-            else if (!string.IsNullOrEmpty(item.Event.Path))
+            if (!string.IsNullOrEmpty(item.Event.Path))
             {
                 var path = item.Event.Path;
                 if (File.Exists(path))

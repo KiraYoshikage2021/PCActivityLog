@@ -120,8 +120,8 @@ public class ActivityEventItem
         }
     }
 
-    /// <summary>位置列：路径或网址。</summary>
-    public string Location => Event.Path ?? Event.Url ?? "";
+    /// <summary>路径列：文件/软件路径（浏览记录功能已移除，不再显示网址）。</summary>
+    public string Location => Event.Path ?? "";
 
     /// <summary>关联的下载事件 id（安装事件的 extra 里），无则空。</summary>
     public long? LinkedDownloadId => Event.GetExtraLong("linkedDownloadId");
