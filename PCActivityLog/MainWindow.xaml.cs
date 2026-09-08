@@ -274,9 +274,8 @@ public sealed partial class MainWindow : Window
                 const uint TPM_RIGHTBUTTON = 0x0002;
                 const uint TPM_RETURNCMD = 0x0100;
                 const uint TPM_BOTTOMALIGN = 0x0020;  // 菜单底边对齐光标 Y（向上展开）
-                const uint TPM_RIGHTALIGN = 0x0008;   // 菜单右边对齐光标 X（向左展开）
-                // 托盘在屏幕底部，必须向上/向左展开，否则菜单会跑到屏幕外
-                const uint TPM_ALIGN = TPM_BOTTOMALIGN | TPM_RIGHTALIGN;
+                // 只向上展开、不右对齐：菜单左边缘从图标处向右展开（符合托盘习惯）
+                const uint TPM_ALIGN = TPM_BOTTOMALIGN;
 
                 const int ID_SHOW = 1;
                 const int ID_AUTOSTART = 2;
