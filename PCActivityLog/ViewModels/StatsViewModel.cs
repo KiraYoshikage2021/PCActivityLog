@@ -46,10 +46,10 @@ public partial class StatsViewModel : ObservableObject
             MonthBrowses = cards.MonthBrowses;
             TotalEvents = cards.TotalEvents;
 
-            var downloadBrush = ThemeService.FindBrush("DownloadBrush");
-            var appBrush = ThemeService.FindBrush("AppBrush");
-            var browseBrush = ThemeService.FindBrush("BrowseBrush");
-            var otherBrush = ThemeService.FindBrush("OtherBrush");
+            var downloadBrush = ThemeService.FindBrush("ChartDownloadBrush"); // 低饱和+半透明专用色
+            var appBrush = ThemeService.FindBrush("ChartAppBrush");
+            var browseBrush = ThemeService.FindBrush("ChartBrowseBrush");
+            var otherBrush = ThemeService.FindBrush("ChartOtherBrush");
 
             var months = _repo.GetMonthly(12);
             Columns.Clear();

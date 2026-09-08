@@ -178,6 +178,12 @@ public class AppSettings
         BrowserPollMinutes = Math.Clamp(BrowserPollMinutes, 1, 120);
         BrowserRetentionDays = Math.Max(0, BrowserRetentionDays);
         OtherRetentionDays = Math.Max(0, OtherRetentionDays);
+
+        // 列宽白名单过滤：只保留合法列名，丢弃历史遗留的编码损坏键
+        // （GBK/UTF-8 误解码会产生形如"鏃堕棿"的伪汉字，看起来像正常中文但匹配不上列标题）
+        var validColumns = new HashSet<string> { "时间", "类型", "名称", "大小 / 版本", "路径 / 网址", "备注" };
+        foreach (var key in ColumnWidths.Keys.Where(k => !validColumns.Contains(k)).ToList())
+            ColumnWidths.Remove(key);
     }
 }
 

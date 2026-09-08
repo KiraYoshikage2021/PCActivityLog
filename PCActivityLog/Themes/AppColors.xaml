@@ -28,6 +28,11 @@
             <SolidColorBrush x:Key="StatCyanBrush" Color="#0891B2"/>
             <SolidColorBrush x:Key="StatSlateBrush" Color="#475569"/>
             <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
+            <!-- 柱状图专用：低饱和 + 半透明（比徽章色柔和，避免图表过于抢眼） -->
+            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#7A93C8" Opacity="0.62"/>
+            <SolidColorBrush x:Key="ChartAppBrush"      Color="#7FB89A" Opacity="0.62"/>
+            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#7BADC4" Opacity="0.62"/>
+            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#B8C4D4" Opacity="0.62"/>
         </ResourceDictionary>
 
         <!-- ============ 深色 ============ -->
@@ -54,6 +59,11 @@
             <SolidColorBrush x:Key="StatCyanBrush" Color="#22D3EE"/>
             <SolidColorBrush x:Key="StatSlateBrush" Color="#94A3B8"/>
             <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
+            <!-- 柱状图专用：低饱和 + 半透明（深色下略亮以保证可读） -->
+            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#8FA8DC" Opacity="0.55"/>
+            <SolidColorBrush x:Key="ChartAppBrush"      Color="#8FCCA8" Opacity="0.55"/>
+            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#8AC0D6" Opacity="0.55"/>
+            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#94A3B8" Opacity="0.5"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

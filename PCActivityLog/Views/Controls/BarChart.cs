@@ -142,15 +142,25 @@ public sealed class BarChart : ContentControl
         }
     }
 
-    /// <summary>把纯色转成垂直渐变（上浅下深），让柱子有立体感。</summary>
+    /// <summary>
+    /// 把纯色转成垂直渐变（上浅下深）并保留透明度。
+    /// 注意：SolidColorBrush.Opacity 是独立属性、不会随 Color 传递，
+    /// 必须把它乘进 Alpha 通道，否则半透明配色会被渲染成不透明。
+    /// </summary>
     private static Brush MakeGradient(Brush baseBrush)
     {
         if (baseBrush is not SolidColorBrush solid) return baseBrush;
         var c = solid.Color;
-        var top = Windows.UI.Color.FromArgb(c.A,
+        // 把画刷的 Opacity 折算进颜色 Alpha
+        byte alpha = (byte)Math.Round(c.A * Math.Clamp(solid.Opacity, 0, 1));
+
+        // 顶部提亮一档（保持同样的透明度）
+        var top = Windows.UI.Color.FromArgb(alpha,
             (byte)Math.Min(255, c.R + (255 - c.R) * 0.22),
             (byte)Math.Min(255, c.G + (255 - c.G) * 0.22),
             (byte)Math.Min(255, c.B + (255 - c.B) * 0.22));
+        var bottom = Windows.UI.Color.FromArgb(alpha, c.R, c.G, c.B);
+
         var grad = new LinearGradientBrush
         {
             StartPoint = new Windows.Foundation.Point(0, 0),
@@ -158,7 +168,7 @@ public sealed class BarChart : ContentControl
             GradientStops =
             {
                 new GradientStop { Color = top, Offset = 0 },
-                new GradientStop { Color = c, Offset = 1 },
+                new GradientStop { Color = bottom, Offset = 1 },
             },
         };
         return grad;
