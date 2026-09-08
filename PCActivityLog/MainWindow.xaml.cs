@@ -197,7 +197,11 @@ public sealed partial class MainWindow : Window
             menu.Items.Add(new MenuFlyoutSeparator());
 
             var exit = new MenuFlyoutItem { Text = "退出" };
-            exit.Click += (_, _) => (App.Current as App)?.ExitApplication();
+            exit.Click += (_, _) =>
+            {
+                DiagnosticsLog.Info("托盘菜单：点击了「退出」");
+                (App.Current as App)?.ExitApplication();
+            };
             menu.Items.Add(exit);
 
             _tray.ContextFlyout = menu;
@@ -241,6 +245,17 @@ public sealed partial class MainWindow : Window
         {
             var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             ShowWindow(hwnd, 0);
+        }
+        catch { }
+    }
+
+    /// <summary>退出时隐藏窗口（让用户立即看到反馈）。</summary>
+    public void HideForExit()
+    {
+        try
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            ShowWindow(hwnd, 0); // SW_HIDE
         }
         catch { }
     }

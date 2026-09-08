@@ -123,31 +123,46 @@ public partial class App : Application
 
     // ---------- 退出 ----------
 
-    /// <summary>真正退出（托盘菜单「退出」调用）。</summary>
+    /// <summary>
+    /// 真正退出（托盘菜单「退出」调用）。
+    /// 关键：先隐藏窗口并让用户立即看到反馈，再把清理工作放到后台线程执行，
+    /// 避免模块停止/队列冲写阻塞 UI 线程导致"点了没反应"的错觉。
+    /// </summary>
     public void ExitApplication()
     {
+        if (_shuttingDown) return; // 防止重复触发
         AllowClose = true;
         _shuttingDown = true;
 
-        SafeRun("停止监视模块", () => Manager?.Dispose());
-        SafeRun("停止数据清理", () => _retention?.Dispose());
-        SafeRun("停止 IM 状态复查", () => _imStatus?.Dispose());
-        SafeRun("释放页面 ViewModel", () => TimelinePageVm?.Dispose());
-        SafeRun("冲写数据库队列", () => WriteQueueInstance?.Dispose());
-        SafeRun("释放托盘", () => MainWindowInstance?.DisposeTray());
-        SafeRun("释放激活信号", () => _activateSignal?.Dispose());
-        SafeRun("释放单实例互斥体", () =>
-        {
-            if (_mutex != null && !_mutex.SafeWaitHandle.IsClosed)
-            {
-                try { _mutex.ReleaseMutex(); } catch (ApplicationException) { }
-            }
-            _mutex?.Dispose();
-        });
-        SafeRun("清空数据库连接池", () => Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools());
+        DiagnosticsLog.Info("开始退出流程…");
 
-        DiagnosticsLog.Info("========== 程序退出 ==========");
-        Exit();
+        // 1. 先隐藏窗口和托盘图标（立即反馈）
+        SafeRun("隐藏窗口", () => MainWindowInstance?.HideForExit());
+        SafeRun("移除托盘图标", () => MainWindowInstance?.DisposeTray());
+
+        // 2. 清理放后台执行，避免阻塞 UI 线程
+        Task.Run(() =>
+        {
+            SafeRun("停止监视模块", () => Manager?.Dispose());
+            SafeRun("停止数据清理", () => _retention?.Dispose());
+            SafeRun("停止 IM 状态复查", () => _imStatus?.Dispose());
+            SafeRun("释放页面 ViewModel", () => TimelinePageVm?.Dispose());
+            SafeRun("冲写数据库队列", () => WriteQueueInstance?.Dispose());
+            SafeRun("释放激活信号", () => _activateSignal?.Dispose());
+            SafeRun("释放单实例互斥体", () =>
+            {
+                if (_mutex != null && !_mutex.SafeWaitHandle.IsClosed)
+                {
+                    try { _mutex.ReleaseMutex(); } catch (ApplicationException) { }
+                }
+                _mutex?.Dispose();
+            });
+            SafeRun("清空数据库连接池", () => Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools());
+            DiagnosticsLog.Info("========== 程序退出 ==========");
+        }).Wait(TimeSpan.FromSeconds(5)); // 最多等 5 秒，超时也强制退出
+
+        // 3. 结束进程
+        Environment.Exit(0);
     }
 
     private static void SafeRun(string step, Action action)
