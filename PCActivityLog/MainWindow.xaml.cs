@@ -203,9 +203,12 @@ public sealed partial class MainWindow : Window
                 (App.Current as App)?.ExitApplication();
             };
             menu.Items.Add(exit);
-
+            // 托盘右键菜单：显式用 RightClickCommand 手动弹出 ContextFlyout。
+            // 不依赖 MenuActivation 自动机制——H.NotifyIcon.WinUI 的自动弹出在窗口
+            // 隐藏到托盘时不可靠（PopupMenu 模式依赖额外包，ActiveWindow 需窗口可见）。
             _tray.ContextFlyout = menu;
             _tray.LeftClickCommand = new RelayCommand(ShowFromTray);
+            _tray.RightClickCommand = new RelayCommand(ShowTrayMenu);
             _tray.ForceCreate();
 
             // 通知服务接气泡
@@ -238,6 +241,113 @@ public sealed partial class MainWindow : Window
         }
         catch { }
     }
+
+    /// <summary>
+    /// 右键托盘图标时弹出菜单。
+    /// 用 Win32 取当前光标位置后调用 ShowContextMenu —— 这是不依赖
+    /// MenuActivation 自动机制的可靠路径（窗口隐藏到托盘时同样有效）。
+    /// </summary>
+    /// <summary>
+    /// 右键托盘图标时弹出菜单（Win32 原生实现）。
+    ///
+    /// 为什么不用 H.NotifyIcon 的 ContextFlyout/ShowContextMenu：
+    /// 实测 RightClickCommand 能正常触发，但 ShowContextMenu 在窗口隐藏到托盘时
+    /// 不显示菜单（PopupMenu 模式的原生菜单依赖当前窗口状态）。
+    /// 改用 CreatePopupMenu + TrackPopupMenuEx 直接创建 Win32 菜单，完全可控。
+    /// </summary>
+    private void ShowTrayMenu()
+    {
+        try
+        {
+            DiagnosticsLog.Info("托盘右键：弹出菜单");
+            GetCursorPos(out var pt);
+
+            var hMenu = CreatePopupMenu();
+            if (hMenu == IntPtr.Zero) return;
+
+            try
+            {
+                const uint MF_STRING = 0x0000;
+                const uint MF_SEPARATOR = 0x0800;
+                const uint MF_CHECKED = 0x0008;
+                const uint MF_UNCHECKED = 0x0000;
+                const uint TPM_RIGHTBUTTON = 0x0002;
+                const uint TPM_RETURNCMD = 0x0100;
+                const uint TPM_BOTTOMALIGN = 0x0020;  // 菜单底边对齐光标 Y（向上展开）
+                const uint TPM_RIGHTALIGN = 0x0008;   // 菜单右边对齐光标 X（向左展开）
+                // 托盘在屏幕底部，必须向上/向左展开，否则菜单会跑到屏幕外
+                const uint TPM_ALIGN = TPM_BOTTOMALIGN | TPM_RIGHTALIGN;
+
+                const int ID_SHOW = 1;
+                const int ID_AUTOSTART = 2;
+                const int ID_EXIT = 3;
+
+                AppendMenu(hMenu, MF_STRING, ID_SHOW, "显示主窗口");
+                AppendMenu(hMenu, MF_SEPARATOR, 0, null);
+
+                bool autoStart = AutoStartService.IsEnabled();
+                AppendMenu(hMenu, MF_STRING | (autoStart ? MF_CHECKED : MF_UNCHECKED),
+                    ID_AUTOSTART, "开机自启动");
+                AppendMenu(hMenu, MF_SEPARATOR, 0, null);
+                AppendMenu(hMenu, MF_STRING, ID_EXIT, "退出");
+
+                // 必须先让窗口成为前台窗口，否则菜单弹出后点击外部不会关闭（Win32 已知行为）
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                SetForegroundWindow(hwnd);
+
+                // TPM_RETURNCMD：同步返回被点中的菜单项 ID（不发送 WM_COMMAND）
+                int cmd = TrackPopupMenuEx(hMenu, TPM_RIGHTBUTTON | TPM_RETURNCMD | TPM_ALIGN,
+                    pt.X, pt.Y, hwnd, IntPtr.Zero);
+
+                // 菜单已关闭，按用户选择执行（在 UI 线程同步处理）
+                switch (cmd)
+                {
+                    case ID_SHOW:
+                        ShowFromTray();
+                        break;
+                    case ID_AUTOSTART:
+                        AutoStartService.SetEnabled(!autoStart);
+                        if (App.Settings != null)
+                        {
+                            App.Settings.StartWithWindows = !autoStart;
+                            App.Settings.Save();
+                        }
+                        break;
+                    case ID_EXIT:
+                        DiagnosticsLog.Info("托盘菜单：点击了「退出」");
+                        (App.Current as App)?.ExitApplication();
+                        break;
+                }
+            }
+            finally
+            {
+                DestroyMenu(hMenu);
+            }
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsLog.Error("弹出托盘菜单失败", ex);
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CreatePopupMenu();
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyMenu(IntPtr hMenu);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool AppendMenu(IntPtr hMenu, uint uFlags, int uIDNewItem, string? lpNewItem);
+
+    [DllImport("user32.dll")]
+    private static extern int TrackPopupMenuEx(IntPtr hMenu, uint fuFlags, int x, int y,
+        IntPtr hwnd, IntPtr lptpm);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int X; public int Y; }
 
     private void HideToTray()
     {
