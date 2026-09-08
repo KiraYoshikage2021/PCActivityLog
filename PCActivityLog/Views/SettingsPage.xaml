@@ -5,10 +5,21 @@
     Background="{ThemeResource PageBgBrush}">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-        <StackPanel Spacing="12" MaxWidth="900" HorizontalAlignment="Left">
+        <!-- 双列自适应：宽屏时卡片分两列铺满，窄屏时单列（MaxWidth 限制单列过宽） -->
+        <Grid ColumnSpacing="12" RowSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="360"/>
+                <ColumnDefinition Width="*" MinWidth="360"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
             <!-- ============ 外观 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="外观" FontSize="14" FontWeight="SemiBold"
@@ -26,7 +37,7 @@
             </Border>
 
             <!-- ============ 文件监视 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="0" Grid.Column="1" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="文件监视（下载 / 删除 / 重命名）" FontSize="14" FontWeight="SemiBold"
@@ -56,7 +67,7 @@
             </Border>
 
             <!-- ============ 软件监视 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="1" Grid.Column="0" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="软件监视（安装 / 更新 / 卸载）" FontSize="14" FontWeight="SemiBold"
@@ -78,7 +89,7 @@
             </Border>
 
             <!-- ============ 系统监视 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="1" Grid.Column="1" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="系统监视" FontSize="14" FontWeight="SemiBold"
@@ -89,7 +100,7 @@
             </Border>
 
             <!-- ============ 微信/QQ 文件监视 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="2" Grid.Column="0" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="微信/QQ 文件监视" FontSize="14" FontWeight="SemiBold"
@@ -100,13 +111,27 @@
                         <CheckBox x:Name="ImWechat" Content="微信收到的文件" Click="SubSwitch_Click"/>
                         <CheckBox x:Name="ImQq" Content="QQ 收到的文件" Click="SubSwitch_Click"/>
                     </StackPanel>
-                    <TextBlock Text="自动识别默认存储位置（文档下的 xwechat_files / WeChat Files / Tencent Files）；文件被清理后记录会自动标注「已清理」。"
+                    <TextBlock Text="自动识别默认存储位置（文档下的 xwechat_files / WeChat Files / Tencent Files）。"
+                               FontSize="11.5" TextWrapping="Wrap" Foreground="{ThemeResource TextTertiaryBrush}"/>
+
+                    <!-- 自定义存储路径：微信/QQ 可修改默认位置，这里让用户手动补充 -->
+                    <TextBlock Text="自定义监视路径（微信/QQ 改了默认存放位置时在此添加）："
+                               FontSize="11.5" TextWrapping="Wrap" Foreground="{ThemeResource TextSecondaryBrush}"
+                               Margin="0,4,0,0"/>
+                    <ListView x:Name="ImFolderList" Height="90" SelectionMode="Single"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="添加路径" Click="AddImFolder_Click"/>
+                        <Button Content="删除选中" Click="RemoveImFolder_Click"/>
+                        <TextBlock Text="改动后需点「应用更改」" FontSize="11.5" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                    <TextBlock Text="文件被清理后记录会自动标注「已清理」。"
                                FontSize="11.5" TextWrapping="Wrap" Foreground="{ThemeResource TextTertiaryBrush}"/>
                 </StackPanel>
             </Border>
 
             <!-- ============ 通知 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="2" Grid.Column="1" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="气泡通知" FontSize="14" FontWeight="SemiBold"
@@ -123,7 +148,7 @@
             </Border>
 
             <!-- ============ 通用行为 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+            <Border Grid.Row="3" Grid.Column="0" VerticalAlignment="Top" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">
                 <StackPanel Spacing="8">
                     <TextBlock Text="通用行为" FontSize="14" FontWeight="SemiBold"
@@ -136,11 +161,11 @@
             </Border>
 
             <!-- ============ 操作按钮 ============ -->
-            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,16">
+            <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,4,0,16">
                 <Button Content="应用更改（文件夹 / 间隔）" Click="Apply_Click" Style="{StaticResource AccentButtonStyle}"/>
                 <TextBlock x:Name="ApplyHint" VerticalAlignment="Center" FontSize="12"
                            Foreground="{ThemeResource StatGreenBrush}"/>
             </StackPanel>
-        </StackPanel>
+        </Grid>
     </ScrollViewer>
 </Page>

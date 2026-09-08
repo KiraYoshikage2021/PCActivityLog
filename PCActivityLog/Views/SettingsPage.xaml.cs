@@ -32,6 +32,7 @@ public sealed partial class SettingsPage : Page
         RecordRenames.IsChecked = _s.RecordRenames;
         SettleSeconds.Value = _s.SettleSeconds;
         RefreshFolderList();
+        RefreshImFolderList();
 
         AppModuleSwitch.IsOn = _s.ModuleAppEnabled;
         RecordInstalls.IsChecked = _s.RecordInstalls;
@@ -123,9 +124,8 @@ public sealed partial class SettingsPage : Page
         _s.NotifyBrowse = NotifyBrowse.IsChecked == true;
         _s.Save();
 
-        // IM 的浏览器/微信QQ 子开关影响监视目录，需重启模块
+        // 微信/QQ 子开关影响监视目录，需重启 IM 模块
         App.Manager?.RestartModule("imfile");
-        App.Manager?.RestartModule("browser");
     }
 
     private void Notify_Toggled(object sender, RoutedEventArgs e)
@@ -179,6 +179,42 @@ public sealed partial class SettingsPage : Page
         }
     }
 
+    // ---------- 微信/QQ 自定义路径管理 ----------
+
+    /// <summary>刷新 IM 自定义路径列表。</summary>
+    private void RefreshImFolderList()
+    {
+        ImFolderList.ItemsSource = null;
+        ImFolderList.ItemsSource = _s.ImFolders;
+    }
+
+    /// <summary>添加 IM 监视路径（微信/QQ 改过默认存放位置时使用）。</summary>
+    private async void AddImFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var picker = new Windows.Storage.Pickers.FolderPicker();
+        picker.FileTypeFilter.Add("*");
+        if (App.MainWindowInstance != null)
+            WinRT.Interop.InitializeWithWindow.Initialize(picker,
+                WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance));
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder == null) return;
+        if (!_s.ImFolders.Any(f => string.Equals(f, folder.Path, StringComparison.OrdinalIgnoreCase)))
+        {
+            _s.ImFolders.Add(folder.Path);
+            RefreshImFolderList();
+        }
+    }
+
+    /// <summary>删除选中的 IM 监视路径。</summary>
+    private void RemoveImFolder_Click(object sender, RoutedEventArgs e)
+    {
+        if (ImFolderList.SelectedItem is string path)
+        {
+            _s.ImFolders.Remove(path);
+            RefreshImFolderList();
+        }
+    }
+
     // ---------- 应用更改 ----------
 
     private void Apply_Click(object sender, RoutedEventArgs e)
@@ -195,6 +231,7 @@ public sealed partial class SettingsPage : Page
 
         if (_s.ModuleFileEnabled) App.Manager?.RestartModule("file");
         if (_s.ModuleAppEnabled) App.Manager?.RestartModule("app");
+        if (_s.ModuleImEnabled) App.Manager?.RestartModule("imfile"); // 自定义路径变更后重启 IM 模块
 
         ApplyHint.Text = "设置已应用 ✓";
     }
