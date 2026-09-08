@@ -1,8 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.UI.Xaml.Media;
 using PCActivityLog.Data;
+using PCActivityLog.Services;
 
 namespace PCActivityLog.ViewModels;
 
@@ -15,7 +16,7 @@ public record ChartColumn(string Label, ChartSegment[] Segments)
     public double Total => Segments.Sum(s => s.Value);
 }
 
-/// <summary>统计页 ViewModel —— 汇总卡片 + 按月堆叠柱状图。</summary>
+/// <summary>统计页 ViewModel（WinUI 版）—— 汇总卡片 + 按月分类图表数据。</summary>
 public partial class StatsViewModel : ObservableObject
 {
     private readonly StatsRepository _repo;
@@ -31,7 +32,7 @@ public partial class StatsViewModel : ObservableObject
 
     public StatsViewModel(StatsRepository repo) => _repo = repo;
 
-    /// <summary>刷新统计数据（切到统计页/主题切换时调用）。</summary>
+    /// <summary>刷新统计数据（进入统计页/主题切换时调用）。</summary>
     [RelayCommand]
     public void Refresh()
     {
@@ -45,13 +46,11 @@ public partial class StatsViewModel : ObservableObject
             MonthBrowses = cards.MonthBrowses;
             TotalEvents = cards.TotalEvents;
 
-            // 四分类颜色从当前主题字典取（浅/深各一套，保证对比度）
-            var downloadBrush = Services.ThemeService.FindBrush("DownloadBrush");
-            var appBrush = Services.ThemeService.FindBrush("AppBrush");
-            var browseBrush = Services.ThemeService.FindBrush("BrowseBrush");
-            var otherBrush = Services.ThemeService.FindBrush("OtherBrush");
+            var downloadBrush = ThemeService.FindBrush("DownloadBrush");
+            var appBrush = ThemeService.FindBrush("AppBrush");
+            var browseBrush = ThemeService.FindBrush("BrowseBrush");
+            var otherBrush = ThemeService.FindBrush("OtherBrush");
 
-            // 最近 12 个月堆叠柱状图：下载/应用/浏览/其他
             var months = _repo.GetMonthly(12);
             Columns.Clear();
             foreach (var m in months)
@@ -66,7 +65,7 @@ public partial class StatsViewModel : ObservableObject
             }
             if (Columns.Count == 0)
                 Columns.Add(new ChartColumn(DateTime.Now.ToString("yyyy-MM"),
-                    new[] { new ChartSegment(0, Brushes.Transparent, "下载") }));
+                    new[] { new ChartSegment(0, new SolidColorBrush(Microsoft.UI.Colors.Transparent), "下载") }));
 
             Legend.Clear();
             Legend.Add(new ChartSegment(0, downloadBrush, "下载"));
@@ -74,10 +73,7 @@ public partial class StatsViewModel : ObservableObject
             Legend.Add(new ChartSegment(0, browseBrush, "浏览"));
             Legend.Add(new ChartSegment(0, otherBrush, "其他"));
         }
-        catch (Exception ex)
-        {
-            Services.DiagnosticsLog.Error("统计刷新失败", ex);
-        }
+        catch (Exception ex) { DiagnosticsLog.Error("统计刷新失败", ex); }
     }
 
     private static string FormatBytes(long bytes) => bytes switch

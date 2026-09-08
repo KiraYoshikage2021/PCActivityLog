@@ -1,20 +1,37 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>PCActivityLog</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
-    <!-- exe 文件图标（资源管理器 / 任务栏显示） -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <EnableMsixTooling>false</EnableMsixTooling>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
+    <AssemblyName>PCActivityLog</AssemblyName>
   </PropertyGroup>
-
   <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1721" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.11" />
+    <PackageReference Include="System.Diagnostics.EventLog" Version="8.0.1" />
+    <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.1.2" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.0" />
   </ItemGroup>
-
+  <!-- WinUI3 dotnet publish 缺陷：XAML 产物(.xbf/.pri)不随发布复制 -->
+  <Target Name="CopyXamlArtifactsOnPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <XamlArtifacts Include="$(TargetDir)*.xbf;$(TargetDir)*.pri" />
+    </ItemGroup>
+    <Copy SourceFiles="@(XamlArtifacts)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="false" />
+  </Target>
 </Project>

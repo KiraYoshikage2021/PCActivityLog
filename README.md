@@ -28,21 +28,19 @@
 
 ### 方式一：直接用发布版（推荐）
 
-构建一个免安装的单文件 exe：
+构建免安装的发布目录（WinUI 3 自包含，免装运行时）：
 
 ```bash
 cd PCActivityLog
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish -c Release -r win-x64 -p:WindowsAppSDKSelfContained=true -o bin/Release/publish
 ```
 
-产物在 `bin\Release\net8.0-windows\win-x64\publish\PCActivityLog.exe`（约 100~130 MB），
-双击即可运行，拷到别的电脑也能直接用，不需要安装任何运行时。
+产物在 `bin\Release\publish\`（约 210 MB，含 Windows App SDK 运行时），
+整个文件夹拷到别的电脑、双击 `PCActivityLog.exe` 即可用，不需要安装任何运行时。
 
-想要轻量版（2~5 MB，需要目标机器装有 .NET 8 桌面运行时）：
-
-```bash
-dotnet publish -c Release --self-contained false
-```
+> ⚠️ WinUI 3 必须用**目录形式**发布（不支持单文件打包）。
+> 本项目 csproj 里的 `CopyXamlArtifactsOnPublish` 目标用于绕过
+> `dotnet publish` 不复制 `.xbf`/`.pri` 的已知缺陷——**删掉它发布版会启动即崩**。
 
 ### 方式二：从源码运行
 
@@ -68,12 +66,10 @@ dotnet publish -c Release --self-contained false
 ## 项目结构地图（想改代码看这里）
 
 ```
-PCActivityLog/
-├── App.xaml(.cs)                 # 入口：单实例、托盘、全局异常兜底、优雅退出、主题初始化
-├── Themes/                       # 主题与样式（浅/深双色板，热切换）
-│   ├── Light.xaml                #   浅色配色字典（画刷全部 Freeze）
-│   ├── Dark.xaml                 #   深色配色字典（同键名）
-│   └── Controls.xaml             #   全部控件模板（颜色一律 DynamicResource 引用）
+PCActivityLog/                    # WinUI 3 + .NET 8 工程
+├── App.xaml(.cs)                 # 入口：单实例、服务组装、全局异常兜底、优雅退出
+├── MainWindow.xaml(.cs)          # 主窗口：左侧 NavigationView 导航 + Mica 背景 + 托盘
+├── Themes/AppColors.xaml         # 浅/深双色板（ThemeDictionaries，随 RequestedTheme 自动切换）
 ├── Models/                       # 数据模型
 │   ├── ActivityEvent.cs          #   一条事件（对应数据库一行）
 │   └── EventType.cs              #   事件类型枚举 + 分类 + 中文名
@@ -81,7 +77,7 @@ PCActivityLog/
 │   ├── Database.cs               #   SQLite 建表 / 查询 / 筛选搜索
 │   ├── WriteQueue.cs             #   单写队列（所有入库走这里，串行化 + 批量事务）
 │   └── StatsRepository.cs        #   统计聚合（卡片 + 按月图表）
-├── Watchers/                     # 采集层（每个文件一个监视模块）
+├── Watchers/                     # 采集层（每个文件一个监视模块，纯逻辑零 UI 依赖）
 │   ├── IWatcherModule.cs         #   模块统一接口 + 事件出口接口
 │   ├── WatcherManager.cs         #   模块注册 / 运行中启停 / 事件汇入
 │   ├── DownloadWatcher.cs        #   下载/删除/重命名（含落盘判定）
@@ -90,25 +86,28 @@ PCActivityLog/
 │   ├── RegistryUninstallWatcher.cs # 注册表对比（安装/更新/卸载）
 │   ├── AppWatcher.cs             #   软件监视模块外壳（组合上面两个）
 │   ├── SystemEventWatcher.cs     #   开关机（事件日志 + 停机回补）
-│   └── BrowserHistoryWatcher.cs  #   浏览器历史增量导入
+│   ├── BrowserHistoryWatcher.cs  #   浏览器历史增量导入
+│   └── ImFileWatcher.cs          #   微信/QQ 文件监视
 ├── Services/                     # 支撑服务
 │   ├── AppSettings.cs            #   配置读写（settings.json）
-│   ├── ThemeService.cs           #   主题跟随（读系统主题/热切换/标题栏深色 DWM）
+│   ├── ThemeService.cs           #   主题跟随（读系统主题 / RequestedTheme / 标题栏深色 DWM）
 │   ├── DiagnosticsLog.cs         #   滚动诊断日志（5 MB 上限）
 │   ├── NotificationService.cs    #   托盘气泡（节流防刷屏）
 │   ├── EventLinker.cs            #   下载↔安装关联匹配
 │   ├── RetentionService.cs       #   过期数据清理
 │   ├── ExportService.cs          #   CSV / JSON 导出
+│   ├── ImFileStatusService.cs    #   IM 文件保存状态定期复核
 │   └── AutoStartService.cs       #   开机自启注册表
-├── Ui/TrayIconFactory.cs         # 代码绘制应用图标（托盘/窗口/exe 图标三处共用一套设计）
-├── Assets/app.ico                # 生成的多尺寸 exe 文件图标（由 TrayIconFactory.SaveIco 产出）
 ├── ViewModels/                   # 界面逻辑（MVVM）
+│   ├── TimelineViewModel.cs      #   时间线（筛选/分页/前沿+尾沿节流刷新/导出）
+│   ├── StatsViewModel.cs         #   统计（汇总卡片 + 图表数据）
+│   └── ActivityEventItem.cs      #   列表行（徽章配色/状态标识）
 └── Views/                        # 界面
-    ├── MainWindow.xaml(.cs)      #   主窗口（时间线 + 统计）
-    ├── SettingsWindow.xaml(.cs)  #   设置（模块开关卡片）
-    ├── AddEventDialog.xaml(.cs)  #   手动添加记录
-    ├── NoteDialog.cs             #   备注编辑
-    └── Controls/BarChart.cs      #   自绘柱状图（无第三方图表库）
+    ├── TimelinePage.xaml(.cs)    #   时间线页（DataGrid + 徽章 + 右键菜单 + 列宽记忆）
+    ├── StatsPage.xaml(.cs)       #   统计页（汇总卡片 + 柱状图）
+    ├── SettingsPage.xaml(.cs)    #   设置页（模块开关卡片）
+    ├── AddEventDialog.cs         #   手动添加记录（ContentDialog）
+    └── Controls/BarChart.cs      #   柱状图控件（Canvas 绘制）
 ```
 
 ### 常见修改
@@ -116,6 +115,7 @@ PCActivityLog/
 - **加一种新事件**：`EventType` 加枚举 → `EventTypeExtensions` 补三处映射 → 写一个 `IWatcherModule` → 在 `WatcherManager.BuildModules` 注册 → 设置页加开关
 - **改默认保留期**：`AppSettings` 里的属性默认值
 - **改落盘判定时间**：设置页"下载落盘判定等待"，代码在 `AppSettings.SettleSeconds`
+- **WinUI 3 注意事项**：`SymbolIcon` 的 `Symbol` 枚举值写错会让 XAML 编译器**静默崩溃**（只报 MSB3073 无行号）；`H.NotifyIcon` 不能写在 XAML 里（会破坏同文件其他命名元素），必须纯代码创建
 
 ## 稳定性设计（为什么它不会越跑越卡）
 
@@ -155,4 +155,4 @@ PCActivityLog/
 
 ---
 
-*技术栈：.NET 8 + WPF · 依赖仅 3 个 NuGet 包（Microsoft.Data.Sqlite、Hardcodet.NotifyIcon.Wpf、CommunityToolkit.Mvvm）*
+*技术栈：.NET 8 + **WinUI 3**（Windows App SDK 1.8）· 6 个 NuGet 包：Microsoft.WindowsAppSDK、Microsoft.Windows.SDK.BuildTools、Microsoft.Data.Sqlite、CommunityToolkit.Mvvm、CommunityToolkit.WinUI.UI.Controls.DataGrid、H.NotifyIcon.WinUI*

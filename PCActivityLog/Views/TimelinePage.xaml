@@ -1,0 +1,128 @@
+<Page
+    x:Class="PCActivityLog.Views.TimelinePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
+    xmlns:vm="using:PCActivityLog.ViewModels"
+    Background="{ThemeResource PageBgBrush}">
+
+    <Grid Padding="16,16,16,8" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============ 筛选工具栏卡片 ============ -->
+        <Border Grid.Row="0" Background="{ThemeResource CardBgBrush}"
+                BorderBrush="{ThemeResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="12,9">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ComboBox Grid.Column="0" Width="118"
+                          ItemsSource="{x:Bind Vm.Groups}"
+                          SelectedItem="{x:Bind Vm.SelectedGroup, Mode=TwoWay}"
+                          DisplayMemberPath="Name"/>
+
+                <TextBox Grid.Column="1" Width="230" PlaceholderText="搜索名称 / 路径 / 网址 / 备注"
+                         Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                <TextBlock Grid.Column="2" Text="从" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextSecondaryBrush}"/>
+                <DatePicker Grid.Column="3" Width="130" SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="4" Text="到" VerticalAlignment="Center"
+                           Foreground="{ThemeResource TextSecondaryBrush}"/>
+                <DatePicker Grid.Column="5" Width="130" SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
+
+                <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8">
+                    <Button Content="查询" Command="{x:Bind Vm.RefreshCommand}" Style="{StaticResource AccentButtonStyle}"/>
+                    <Button Content="＋ 添加记录" Click="AddEvent_Click"/>
+                    <Button Content="导出 CSV" Click="ExportCsv_Click"/>
+                    <Button Content="导出 JSON" Click="ExportJson_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ============ 事件列表卡片 ============ -->
+        <Border Grid.Row="1" Background="{ThemeResource CardBgBrush}"
+                BorderBrush="{ThemeResource CardBorderBrush}" BorderThickness="1"
+                CornerRadius="10" Padding="2">
+            <controls:DataGrid x:Name="Grid"
+                               ItemsSource="{x:Bind Vm.Items}"
+                               AutoGenerateColumns="False"
+                               IsReadOnly="True"
+                               SelectionMode="Single"
+                               CanUserResizeColumns="True"
+                               CanUserSortColumns="False"
+                               GridLinesVisibility="None"
+                               HeadersVisibility="Column"
+                               RowHeight="38"
+                               SelectedItem="{x:Bind Vm.SelectedItem, Mode=TwoWay}"
+                               DoubleTapped="Grid_DoubleTapped"
+                               RightTapped="Grid_RightTapped"
+                               Background="Transparent"
+                               BorderThickness="0">
+                <controls:DataGrid.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="打开文件位置 / 网址" Click="OpenLocation_Click"/>
+                        <MenuFlyoutItem Text="跳到来源安装包" Click="JumpLinked_Click"/>
+                        <MenuFlyoutSeparator/>
+                        <MenuFlyoutItem Text="复制名称" Click="CopyName_Click"/>
+                    </MenuFlyout>
+                </controls:DataGrid.ContextFlyout>
+                <controls:DataGrid.Columns>
+                    <controls:DataGridTextColumn Header="时间" Binding="{Binding TimeDisplay}" Width="150" MinWidth="110"
+                                                />
+                    <controls:DataGridTemplateColumn Header="类型" Width="90" MinWidth="70">
+                        <controls:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:ActivityEventItem">
+                                <Border Background="{x:Bind TypeBadgeBrush}" CornerRadius="999"
+                                        Padding="9,3" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind TypeDisplay}" Foreground="{x:Bind TypeBrush}"
+                                               FontSize="12" FontWeight="SemiBold"/>
+                                </Border>
+                            </DataTemplate>
+                        </controls:DataGridTemplateColumn.CellTemplate>
+                    </controls:DataGridTemplateColumn>
+                    <controls:DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*" MinWidth="120"/>
+                    <controls:DataGridTemplateColumn Header="大小 / 版本" Width="180" MinWidth="100">
+                        <controls:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:ActivityEventItem">
+                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{x:Bind LocalStatusDisplay}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{x:Bind LocalStatusBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{x:Bind LinkedHint}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{ThemeResource AccentBrush}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </controls:DataGridTemplateColumn.CellTemplate>
+                    </controls:DataGridTemplateColumn>
+                    <controls:DataGridTextColumn Header="路径 / 网址" Binding="{Binding Location}" Width="320" MinWidth="120"
+                                                />
+                    <controls:DataGridTextColumn Header="备注" Binding="{Binding Note}" Width="140" MinWidth="80"
+                                                />
+                </controls:DataGrid.Columns>
+            </controls:DataGrid>
+        </Border>
+
+        <!-- ============ 状态栏 ============ -->
+        <Grid Grid.Row="2" Padding="4,4,4,0">
+            <TextBlock Text="{x:Bind Vm.StatusText, Mode=OneWay}" FontSize="12"
+                       Foreground="{ThemeResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+            <Button Content="加载更多 ↓" HorizontalAlignment="Right"
+                    Visibility="{x:Bind Vm.HasMore, Mode=OneWay}"
+                    Command="{x:Bind Vm.LoadMoreCommand}"/>
+        </Grid>
+    </Grid>
+</Page>

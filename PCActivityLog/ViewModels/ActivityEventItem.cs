@@ -1,13 +1,14 @@
-using System.Windows.Media;
-using PCActivityLog.Services;
+using Microsoft.UI.Xaml.Media;
 using PCActivityLog.Models;
+using PCActivityLog.Services;
+using Windows.UI;
 
 namespace PCActivityLog.ViewModels;
 
 /// <summary>
-/// 时间线列表的一行 —— 包装 <see cref="ActivityEvent"/>，提供界面绑定用的显示属性
-/// （时间、类型徽章颜色、详情列等）。纯显示对象，不改数据。
-/// 徽章颜色在构造时按当前主题计算并冻结；主题切换后由 MainViewModel.Refresh() 重建行。
+/// 时间线列表的一行（WinUI 版）—— 包装 <see cref="ActivityEvent"/>，提供界面绑定用的显示属性。
+/// 徽章颜色在构造时按当前主题计算；主题切换后由 TimelineViewModel.Refresh() 重建行。
+/// 与 WPF 版的差异：Brush 用 Microsoft.UI.Xaml.Media，Color 用 Windows.UI.Color（无需 Freeze）。
 /// </summary>
 public class ActivityEventItem
 {
@@ -21,36 +22,30 @@ public class ActivityEventItem
         var c = e.Type == EventType.ImFile ? ImColor(e.Source) : TypeColor(e.Type);
 
         // 徽章配色：文字用基色（深色主题下提亮一档），底色用同色低透明度
-        var textBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(c, 0.30f) : c);
-        var bgBrush = new SolidColorBrush(ThemeService.WithAlpha(c, ThemeService.IsDark ? (byte)0x3D : (byte)0x24));
-        textBrush.Freeze();
-        bgBrush.Freeze();
-        TypeBrush = textBrush;
-        TypeBadgeBrush = bgBrush;
+        TypeBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(c, 0.30f) : c);
+        TypeBadgeBrush = new SolidColorBrush(ThemeService.WithAlpha(c, ThemeService.IsDark ? (byte)0x3D : (byte)0x24));
 
         // 保存状态标识（仅 IM 文件有）：✔ 已保存 / ⚠ 已清理
         if (e.Type == EventType.ImFile)
         {
             var missing = e.GetExtraString("localStatus") == "missing";
             LocalStatusDisplay = missing ? "⚠ 已清理" : "✔ 已保存";
-            var sc = missing ? Color.FromRgb(0xD9, 0x77, 0x06) : Color.FromRgb(0x16, 0xA3, 0x4A);
-            var sb = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(sc, 0.25f) : sc);
-            sb.Freeze();
-            LocalStatusBrush = sb;
+            var sc = missing ? Color.FromArgb(255, 0xD9, 0x77, 0x06) : Color.FromArgb(255, 0x16, 0xA3, 0x4A);
+            LocalStatusBrush = new SolidColorBrush(ThemeService.IsDark ? ThemeService.Lighten(sc, 0.25f) : sc);
         }
         else
         {
             LocalStatusDisplay = "";
-            LocalStatusBrush = Brushes.Transparent;
+            LocalStatusBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         }
     }
 
     /// <summary>IM 文件按来源取品牌色：微信绿 / QQ蓝 / 自定义灰。</summary>
     private static Color ImColor(string? source) => source switch
     {
-        "wechat" => Color.FromRgb(0x07, 0xC1, 0x60),
-        "qq" => Color.FromRgb(0x12, 0xB7, 0xF5),
-        _ => Color.FromRgb(0x64, 0x74, 0x8B),
+        "wechat" => Color.FromArgb(255, 0x07, 0xC1, 0x60),
+        "qq" => Color.FromArgb(255, 0x12, 0xB7, 0xF5),
+        _ => Color.FromArgb(255, 0x64, 0x74, 0x8B),
     };
 
     public long Id => Event.Id;
@@ -70,17 +65,17 @@ public class ActivityEventItem
         _ => Event.Type.ToDisplayName(),
     };
 
-    /// <summary>IM 文件的本地保存状态标识（✔ 已保存 / ⚠ 已清理，其他类型为空）。</summary>
+    /// <summary>类型徽章文字色。</summary>
+    public Brush TypeBrush { get; }
+
+    /// <summary>类型徽章底色。</summary>
+    public Brush TypeBadgeBrush { get; }
+
+    /// <summary>IM 文件的本地保存状态标识（其他类型为空）。</summary>
     public string LocalStatusDisplay { get; }
 
     /// <summary>保存状态标识颜色。</summary>
     public Brush LocalStatusBrush { get; }
-
-    /// <summary>类型徽章文字色（已冻结）。</summary>
-    public Brush TypeBrush { get; }
-
-    /// <summary>类型徽章底色（已冻结）。</summary>
-    public Brush TypeBadgeBrush { get; }
 
     public string Name => Event.Name;
 
@@ -107,7 +102,7 @@ public class ActivityEventItem
     public long? LinkedDownloadId => Event.GetExtraLong("linkedDownloadId");
 
     /// <summary>关联提示文字（无关联为空）。</summary>
-    public string LinkedHint => LinkedDownloadId is null ? "" : "来源安装包 →";
+    public string LinkedHint => LinkedDownloadId is null ? "" : "🔗 来源安装包";
 
     /// <summary>来源显示（chrome/edge/firefox/msi/registry/manual…）。</summary>
     public string SourceDisplay => Event.Source ?? "";
@@ -117,15 +112,16 @@ public class ActivityEventItem
     /// <summary>事件类型的主题色。</summary>
     public static Color TypeColor(EventType t) => t switch
     {
-        EventType.Download => Color.FromRgb(0x25, 0x63, 0xEB),   // 蓝
-        EventType.FileDelete => Color.FromRgb(0x64, 0x74, 0x8B), // 灰蓝
-        EventType.FileRename => Color.FromRgb(0x47, 0x56, 0x69), // 深灰蓝
-        EventType.Install => Color.FromRgb(0x16, 0xA3, 0x4A),    // 绿
-        EventType.Update => Color.FromRgb(0xD9, 0x77, 0x06),     // 琥珀
-        EventType.Uninstall => Color.FromRgb(0xDC, 0x26, 0x26),  // 红
-        EventType.Boot => Color.FromRgb(0x7C, 0x3A, 0xED),       // 紫
-        EventType.Shutdown => Color.FromRgb(0x93, 0x33, 0xEA),   // 亮紫
-        EventType.Browse => Color.FromRgb(0x08, 0x91, 0xB2),     // 青
-        _ => Color.FromRgb(0x52, 0x52, 0x52),                    // 手动：深灰
+        EventType.Download => Color.FromArgb(255, 0x25, 0x63, 0xEB),
+        EventType.FileDelete => Color.FromArgb(255, 0x64, 0x74, 0x8B),
+        EventType.FileRename => Color.FromArgb(255, 0x47, 0x56, 0x69),
+        EventType.ImFile => Color.FromArgb(255, 0x64, 0x74, 0x8B),
+        EventType.Install => Color.FromArgb(255, 0x16, 0xA3, 0x4A),
+        EventType.Update => Color.FromArgb(255, 0xD9, 0x77, 0x06),
+        EventType.Uninstall => Color.FromArgb(255, 0xDC, 0x26, 0x26),
+        EventType.Boot => Color.FromArgb(255, 0x7C, 0x3A, 0xED),
+        EventType.Shutdown => Color.FromArgb(255, 0x93, 0x33, 0xEA),
+        EventType.Browse => Color.FromArgb(255, 0x08, 0x91, 0xB2),
+        _ => Color.FromArgb(255, 0x52, 0x52, 0x52),
     };
 }

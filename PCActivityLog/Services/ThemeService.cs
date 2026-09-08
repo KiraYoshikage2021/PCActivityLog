@@ -1,57 +1,46 @@
-using System.Runtime.InteropServices;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.Win32;
+using System.Runtime.InteropServices;
+using Windows.UI;
 
 namespace PCActivityLog.Services;
 
 /// <summary>
-/// 主题服务 —— 实现 Windows 11 原生应用的"跟随系统浅色/深色主题"行为：
-///   1. 读取注册表 AppsUseLightTheme 判断系统主题（也可由设置强制指定）；
-///   2. 热切换 = 把 App 资源里的主题字典（Themes/Light.xaml 或 Dark.xaml）整体换掉，
-///      所有控件样式都通过 DynamicResource 引用颜色，换字典即全局实时生效；
-///   3. P/Invoke DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) 同步系统标题栏；
-///   4. 切换后触发 <see cref="ThemeChanged"/>，界面据此重建带颜色缓存的行项目。
+/// 主题服务（WinUI 3 版）—— 跟随 Windows 浅色/深色主题。
 ///
-/// 性能说明（规范）：切换是纯事件驱动（用户改系统主题/设置时才发生），
-/// 稳态零开销；字典中的画刷全部在 XAML 里 Freeze 冻结。
+/// 与 WPF 版的差异：WinUI 没有 WPF 那种 MergedDictionaries 热替换机制，
+/// 改用根元素 FrameworkElement.RequestedTheme 统一切换（ElementTheme），
+/// 配合 App.xaml 里的 ThemeDictionaries 资源，深浅色自动生效。
+/// 标题栏深色仍走 DWM（与 WPF 版同一套 P/Invoke）。
 /// </summary>
 public static class ThemeService
 {
     /// <summary>当前是否深色主题（徽章等着色计算用）。</summary>
     public static bool IsDark { get; private set; }
 
-    /// <summary>主题切换后触发（UI 线程外也可能触发，订阅方自行编组）。</summary>
+    /// <summary>主题切换后触发（UI 线程），订阅方重建带颜色缓存的行项目。</summary>
     public static event Action? ThemeChanged;
 
-    /// <summary>应用主题：按设置的模式（auto/light/dark）解析并切换整套资源。</summary>
-    public static void Apply(AppSettings settings)
+    /// <summary>应用主题到指定窗口根元素。settings.ThemeMode: auto/light/dark。</summary>
+    public static void Apply(AppSettings settings, Window? window = null)
     {
-        var dark = settings.ThemeMode switch
+        IsDark = settings.ThemeMode switch
         {
             "dark" => true,
             "light" => false,
-            _ => !ReadSystemUsesLightTheme(), // auto：跟随系统
+            _ => !ReadSystemUsesLightTheme(),
         };
 
-        if (Application.Current?.Resources is { } res)
-        {
-            var uri = new Uri($"pack://application:,,,/Themes/{(dark ? "Dark" : "Light")}.xaml", UriKind.Absolute);
-            var dict = new ResourceDictionary { Source = uri };
-            if (res.MergedDictionaries.Count == 0)
-                res.MergedDictionaries.Add(dict);
-            else
-                res.MergedDictionaries[0] = dict; // 换首字典，DynamicResource 自动传播
-        }
+        if (window?.Content is FrameworkElement root)
+            root.RequestedTheme = IsDark ? ElementTheme.Dark : ElementTheme.Light;
 
-        IsDark = dark;
-        UpdateAllWindowsTitleBar();
+        ApplyTitleBar(window);
         try { ThemeChanged?.Invoke(); }
         catch (Exception ex) { DiagnosticsLog.Error("主题切换事件处理异常", ex); }
     }
 
-    /// <summary>读取系统应用主题（浅色=true）。读不到时默认浅色。</summary>
+    /// <summary>读取系统应用主题（浅色=true）。</summary>
     private static bool ReadSystemUsesLightTheme()
     {
         try
@@ -60,7 +49,7 @@ public static class ThemeService
                 @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
             if (key?.GetValue("AppsUseLightTheme") is int v) return v != 0;
         }
-        catch { /* 注册表读取失败走默认 */ }
+        catch { }
         return true;
     }
 
@@ -69,47 +58,42 @@ public static class ThemeService
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
-    /// <summary>把窗口的系统标题栏切到当前主题（窗口 SourceInitialized 时调用一次即可）。</summary>
-    public static void ApplyTitleBar(Window window)
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetActiveWindow();
+
+    /// <summary>把窗口标题栏切到当前主题。</summary>
+    public static void ApplyTitleBar(Window? window)
     {
         try
         {
-            var hwnd = new WindowInteropHelper(window).Handle;
+            IntPtr hwnd = window is null ? GetActiveWindow() : WinRT.Interop.WindowNative.GetWindowHandle(window);
             if (hwnd == IntPtr.Zero) return;
             int dark = IsDark ? 1 : 0;
-            // 20 = DWMWA_USE_IMMERSIVE_DARK_MODE（Win10 2004+ / Win11）
-            DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int));
+            DwmSetWindowAttribute(hwnd, 20, ref dark, sizeof(int)); // DWMWA_USE_IMMERSIVE_DARK_MODE
         }
-        catch { /* 旧系统不支持此属性，保持默认标题栏 */ }
+        catch { /* 旧系统不支持，保持默认 */ }
     }
 
-    /// <summary>更新当前所有可见窗口的标题栏（主题切换时调用）。</summary>
-    private static void UpdateAllWindowsTitleBar()
+    // ---------- 代码取色辅助（图表等自绘场景） ----------
+
+    /// <summary>从当前主题资源取画刷，取不到回退灰色。</summary>
+    public static SolidColorBrush FindBrush(string key)
     {
-        if (Application.Current?.Windows is null) return;
-        foreach (Window w in Application.Current.Windows)
-        {
-            if (w.IsLoaded) ApplyTitleBar(w);
-        }
+        if (Application.Current?.Resources.TryGetValue(key, out var v) == true && v is SolidColorBrush b)
+            return b;
+        return new SolidColorBrush(Microsoft.UI.Colors.Gray);
     }
 
-    // ---------- 代码取色辅助（图表等代码绘制场景） ----------
-
-    /// <summary>从当前主题取画刷，取不到回退灰色。</summary>
-    public static Brush FindBrush(string key)
-        => Application.Current?.TryFindResource(key) as Brush ?? Brushes.Gray;
-
-    /// <summary>颜色向白色方向混合（深色主题下提亮文字用）。</summary>
+    /// <summary>颜色向白色方向混合（深色主题下提亮用）。</summary>
     public static Color Lighten(Color c, float amount)
     {
         amount = Math.Clamp(amount, 0f, 1f);
-        return Color.FromRgb(
+        return Color.FromArgb(c.A,
             (byte)(c.R + (255 - c.R) * amount),
             (byte)(c.G + (255 - c.G) * amount),
             (byte)(c.B + (255 - c.B) * amount));
     }
 
     /// <summary>替换颜色的透明度（徽章底色用）。</summary>
-    public static Color WithAlpha(Color c, byte alpha)
-        => Color.FromArgb(alpha, c.R, c.G, c.B);
+    public static Color WithAlpha(Color c, byte alpha) => Color.FromArgb(alpha, c.R, c.G, c.B);
 }

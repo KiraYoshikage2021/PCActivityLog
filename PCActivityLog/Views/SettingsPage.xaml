@@ -1,0 +1,174 @@
+<Page
+    x:Class="PCActivityLog.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="{ThemeResource PageBgBrush}">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+        <StackPanel Spacing="12" MaxWidth="900" HorizontalAlignment="Left">
+
+            <!-- ============ 外观 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="外观" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="主题模式：" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <ComboBox x:Name="ThemeBox" Width="200" SelectionChanged="ThemeBox_SelectionChanged">
+                            <ComboBoxItem Content="跟随系统（浅色 / 深色自动切换）"/>
+                            <ComboBoxItem Content="浅色"/>
+                            <ComboBoxItem Content="深色"/>
+                        </ComboBox>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 文件监视 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="文件监视（下载 / 删除 / 重命名）" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="FileModuleSwitch" Header="启用文件监视模块" OnContent="开" OffContent="关"
+                                  Toggled="FileModule_Toggled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <CheckBox x:Name="RecordDownloads" Content="记录下载（含来源网址）" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="RecordDeletes" Content="记录删除" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="RecordRenames" Content="记录重命名" Click="SubSwitch_Click"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="下载落盘判定等待（秒，2-60）：" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <NumberBox x:Name="SettleSeconds" Width="110" Minimum="2" Maximum="60" SpinButtonPlacementMode="Inline"
+                                   ValueChanged="NumberBox_ValueChanged"/>
+                    </StackPanel>
+                    <TextBlock Text="监视的文件夹：" Foreground="{ThemeResource TextSecondaryBrush}"/>
+                    <ListView x:Name="FolderList" Height="110" SelectionMode="Single"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Content="添加文件夹" Click="AddFolder_Click"/>
+                        <Button Content="删除选中" Click="RemoveFolder_Click"/>
+                        <TextBlock Text="改动后需点下方「应用更改」" FontSize="11.5" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextTertiaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 软件监视 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="软件监视（安装 / 更新 / 卸载）" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="AppModuleSwitch" Header="启用软件监视模块" OnContent="开" OffContent="关"
+                                  Toggled="AppModule_Toggled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <CheckBox x:Name="RecordInstalls" Content="记录安装" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="RecordUpdates" Content="记录更新" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="RecordUninstalls" Content="记录卸载" Click="SubSwitch_Click"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="注册表轮询间隔（秒，10-3600）：" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <NumberBox x:Name="RegistryPollSeconds" Width="120" Minimum="10" Maximum="3600"
+                                   SpinButtonPlacementMode="Inline" ValueChanged="NumberBox_ValueChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 系统监视 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="系统监视" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="SystemModuleSwitch" Header="记录开机 / 关机时间" OnContent="开" OffContent="关"
+                                  Toggled="SystemModule_Toggled"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 微信/QQ 文件监视 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="微信/QQ 文件监视" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="ImModuleSwitch" Header="启用微信/QQ 文件监视模块" OnContent="开" OffContent="关"
+                                  Toggled="ImModule_Toggled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <CheckBox x:Name="ImWechat" Content="微信收到的文件" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="ImQq" Content="QQ 收到的文件" Click="SubSwitch_Click"/>
+                    </StackPanel>
+                    <TextBlock Text="自动识别默认存储位置（文档下的 xwechat_files / WeChat Files / Tencent Files）；文件被清理后记录会自动标注「已清理」。"
+                               FontSize="11.5" TextWrapping="Wrap" Foreground="{ThemeResource TextTertiaryBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 浏览器记录 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="浏览器记录" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="BrowserModuleSwitch" Header="启用浏览器记录模块" OnContent="开" OffContent="关"
+                                  Toggled="BrowserModule_Toggled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <CheckBox x:Name="BrowserChrome" Content="Chrome" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="BrowserEdge" Content="Edge" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="BrowserFirefox" Content="Firefox" Click="SubSwitch_Click"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="读取间隔（分钟，1-120）：" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <NumberBox x:Name="BrowserPollMinutes" Width="110" Minimum="1" Maximum="120"
+                                   SpinButtonPlacementMode="Inline" ValueChanged="NumberBox_ValueChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="浏览记录保留天数（0=永久）：" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <NumberBox x:Name="BrowserRetentionDays" Width="110" Minimum="0" Maximum="3650"
+                                   SpinButtonPlacementMode="Inline" ValueChanged="NumberBox_ValueChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 通知 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="气泡通知" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="NotificationsEnabled" Header="启用气泡通知（10 秒节流）" OnContent="开" OffContent="关"
+                                  Toggled="Notify_Toggled"/>
+                    <StackPanel Orientation="Horizontal" Spacing="18">
+                        <CheckBox x:Name="NotifyDownloads" Content="下载" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="NotifyApp" Content="应用" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="NotifySystem" Content="系统" Click="SubSwitch_Click"/>
+                        <CheckBox x:Name="NotifyBrowse" Content="浏览（易刷屏，慎开）" Click="SubSwitch_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 通用行为 ============ -->
+            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="16,14">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="通用行为" FontSize="14" FontWeight="SemiBold"
+                               Foreground="{ThemeResource TextPrimaryBrush}"/>
+                    <ToggleSwitch x:Name="MinimizeToTray" Header="点窗口关闭按钮时最小化到托盘" OnContent="是" OffContent="否"
+                                  Toggled="Minimize_Toggled"/>
+                    <ToggleSwitch x:Name="StartWithWindows" Header="开机自动启动（后台静默运行）" OnContent="开" OffContent="关"
+                                  Toggled="AutoStart_Toggled"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 操作按钮 ============ -->
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,4,0,16">
+                <Button Content="应用更改（文件夹 / 间隔）" Click="Apply_Click" Style="{StaticResource AccentButtonStyle}"/>
+                <TextBlock x:Name="ApplyHint" VerticalAlignment="Center" FontSize="12"
+                           Foreground="{ThemeResource StatGreenBrush}"/>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>
