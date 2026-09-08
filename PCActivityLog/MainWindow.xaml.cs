@@ -173,40 +173,9 @@ public sealed partial class MainWindow : Window
                 catch (Exception ex2) { DiagnosticsLog.Error("托盘图标回退也失败", ex2); }
             }
 
-            var menu = new MenuFlyout();
-            var show = new MenuFlyoutItem { Text = "显示主窗口" };
-            show.Click += (_, _) => ShowFromTray();
-            menu.Items.Add(show);
-
-            var settings = new MenuFlyoutItem { Text = "设置" };
-            settings.Click += (_, _) => { ShowFromTray(); Nav.SelectedItem = Nav.MenuItems[2]; };
-            menu.Items.Add(settings);
-
-            var autoStart = new ToggleMenuFlyoutItem
-            {
-                Text = "开机自启动",
-                IsChecked = AutoStartService.IsEnabled(),
-            };
-            autoStart.Click += (_, _) =>
-            {
-                AutoStartService.SetEnabled(autoStart.IsChecked);
-                if (App.Settings != null) { App.Settings.StartWithWindows = autoStart.IsChecked; App.Settings.Save(); }
-            };
-            menu.Items.Add(autoStart);
-
-            menu.Items.Add(new MenuFlyoutSeparator());
-
-            var exit = new MenuFlyoutItem { Text = "退出" };
-            exit.Click += (_, _) =>
-            {
-                DiagnosticsLog.Info("托盘菜单：点击了「退出」");
-                (App.Current as App)?.ExitApplication();
-            };
-            menu.Items.Add(exit);
-            // 托盘右键菜单：显式用 RightClickCommand 手动弹出 ContextFlyout。
-            // 不依赖 MenuActivation 自动机制——H.NotifyIcon.WinUI 的自动弹出在窗口
-            // 隐藏到托盘时不可靠（PopupMenu 模式依赖额外包，ActiveWindow 需窗口可见）。
-            _tray.ContextFlyout = menu;
+            // 托盘菜单统一由 Win32 原生菜单实现（见 ShowTrayMenu）：
+            // H.NotifyIcon 的 ContextFlyout/MenuActivation 在窗口隐藏到托盘时无法弹出菜单，
+            // 且与 Win32 菜单并存会导致两套菜单互相干扰，故不再使用 ContextFlyout。
             _tray.LeftClickCommand = new RelayCommand(ShowFromTray);
             _tray.RightClickCommand = new RelayCommand(ShowTrayMenu);
             _tray.ForceCreate();
@@ -278,10 +247,12 @@ public sealed partial class MainWindow : Window
                 const uint TPM_ALIGN = TPM_BOTTOMALIGN;
 
                 const int ID_SHOW = 1;
-                const int ID_AUTOSTART = 2;
-                const int ID_EXIT = 3;
+                const int ID_SETTINGS = 2;
+                const int ID_AUTOSTART = 3;
+                const int ID_EXIT = 4;
 
                 AppendMenu(hMenu, MF_STRING, ID_SHOW, "显示主窗口");
+                AppendMenu(hMenu, MF_STRING, ID_SETTINGS, "设置");
                 AppendMenu(hMenu, MF_SEPARATOR, 0, null);
 
                 bool autoStart = AutoStartService.IsEnabled();
@@ -303,6 +274,11 @@ public sealed partial class MainWindow : Window
                 {
                     case ID_SHOW:
                         ShowFromTray();
+                        break;
+                    case ID_SETTINGS:
+                        // 显示主窗口并切到设置页
+                        ShowFromTray();
+                        Nav.SelectedItem = Nav.MenuItems[2];
                         break;
                     case ID_AUTOSTART:
                         AutoStartService.SetEnabled(!autoStart);
@@ -374,7 +350,7 @@ public sealed partial class MainWindow : Window
     private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         if (args.SelectedItem is not NavigationViewItem item) return;
-        Type? page = item.Tag as string switch
+        Type? page = (item.Tag as string) switch
         {
             "timeline" => typeof(TimelinePage),
             "stats" => typeof(StatsPage),
