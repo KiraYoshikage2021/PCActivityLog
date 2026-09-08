@@ -127,7 +127,7 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// 把时间范围选项换算成日期区间。
-    /// Days &gt; 0：从"今天 - (Days-1)"到今天（含今天）；Days = 0：仅今天；Days &lt; 0：不限（清空区间）。
+    /// Days = 0：仅今天；Days = N（&gt;0）：含今天在内共 N 天；Days &lt; 0：不限。
     /// </summary>
     private void ApplyRange(DateRangeOption range)
     {
@@ -138,7 +138,10 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
             return;
         }
         var today = DateTime.Today;
-        DateFrom = new DateTimeOffset(today.AddDays(-(range.Days - 1)));
+        // Days=0（今天）起点即今天；Days=3 起点为 2 天前（含今天共 3 天）。
+        // 注意：不能直接写 -(Days-1)，否则 Days=0 时起点会变成明天，导致查不到任何数据。
+        int backDays = range.Days <= 1 ? 0 : range.Days - 1;
+        DateFrom = new DateTimeOffset(today.AddDays(-backDays));
         DateTo = new DateTimeOffset(today);
     }
 
