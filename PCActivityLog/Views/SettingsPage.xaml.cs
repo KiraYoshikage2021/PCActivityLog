@@ -19,6 +19,52 @@ public sealed partial class SettingsPage : Page
         InitializeComponent();
         LoadFromSettings();
         _loading = false;
+
+        // 响应式布局：窗口宽度不足时切单列，避免两列被挤压导致内容溢出
+        SizeChanged += (_, e) => ApplyResponsiveLayout(e.NewSize.Width);
+        Loaded += (_, _) => ApplyResponsiveLayout(ActualWidth);
+    }
+
+    /// <summary>是否已切为单列（避免重复调整）。</summary>
+    private bool _singleColumn;
+
+    /// <summary>
+    /// 单列/双列自适应：可用宽度 &lt; 900 时改为单列（第二列收窄为 0，所有卡片移到第 0 列）。
+    /// </summary>
+    /// <summary>
+    /// 单列/双列自适应：可用宽度 &lt; 900 时改为单列（右列折叠为 0，
+    /// 右列内容整体移到左列下方，避免两列被挤压溢出）。
+    /// </summary>
+    private void ApplyResponsiveLayout(double width)
+    {
+        if (width <= 0) return;
+        bool single = width < 900;
+        if (single == _singleColumn) return;
+        _singleColumn = single;
+
+        if (single)
+        {
+            // 单列：右列宽度归零，把右列 StackPanel 挂到左列下方
+            ColRight.Width = new GridLength(0);
+            ColLeft.Width = new GridLength(1, GridUnitType.Star);
+            if (RightColumn.Parent is Grid g && !ReferenceEquals(RightColumn.Parent, LeftColumn))
+            {
+                g.Children.Remove(RightColumn);
+                LeftColumn.Children.Add(RightColumn);
+            }
+        }
+        else
+        {
+            // 双列：右列恢复，把 StackPanel 放回第 1 列
+            if (ReferenceEquals(RightColumn.Parent, LeftColumn))
+            {
+                LeftColumn.Children.Remove(RightColumn);
+                Grid.SetColumn(RightColumn, 1);
+                SettingsRoot.Children.Add(RightColumn);
+            }
+            ColLeft.Width = new GridLength(1, GridUnitType.Star);
+            ColRight.Width = new GridLength(1, GridUnitType.Star);
+        }
     }
 
     /// <summary>把配置读入界面控件（初始化期间不触发变更回调）。</summary>
@@ -30,7 +76,7 @@ public sealed partial class SettingsPage : Page
         RecordDownloads.IsChecked = _s.RecordDownloads;
         RecordDeletes.IsChecked = _s.RecordDeletes;
         RecordRenames.IsChecked = _s.RecordRenames;
-        SettleSeconds.Value = _s.SettleSeconds;
+        SettleSeconds.Text = _s.SettleSeconds.ToString();
         RefreshFolderList();
         RefreshImFolderList();
 
@@ -38,7 +84,7 @@ public sealed partial class SettingsPage : Page
         RecordInstalls.IsChecked = _s.RecordInstalls;
         RecordUpdates.IsChecked = _s.RecordUpdates;
         RecordUninstalls.IsChecked = _s.RecordUninstalls;
-        RegistryPollSeconds.Value = _s.RegistryPollSeconds;
+        RegistryPollSeconds.Text = _s.RegistryPollSeconds.ToString();
 
         SystemModuleSwitch.IsOn = _s.ModuleSystemEnabled;
 
@@ -51,7 +97,6 @@ public sealed partial class SettingsPage : Page
         NotifyDownloads.IsChecked = _s.NotifyDownloads;
         NotifyApp.IsChecked = _s.NotifyApp;
         NotifySystem.IsChecked = _s.NotifySystem;
-        NotifyBrowse.IsChecked = _s.NotifyBrowse;
 
         MinimizeToTray.IsOn = _s.MinimizeToTrayOnClose;
         StartWithWindows.IsOn = AutoStartService.IsEnabled();
@@ -121,7 +166,6 @@ public sealed partial class SettingsPage : Page
         _s.NotifyDownloads = NotifyDownloads.IsChecked == true;
         _s.NotifyApp = NotifyApp.IsChecked == true;
         _s.NotifySystem = NotifySystem.IsChecked == true;
-        _s.NotifyBrowse = NotifyBrowse.IsChecked == true;
         _s.Save();
 
         // 微信/QQ 子开关影响监视目录，需重启 IM 模块
@@ -147,10 +191,9 @@ public sealed partial class SettingsPage : Page
         _s.StartWithWindows = StartWithWindows.IsOn; _s.Save();
     }
 
-    private void NumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        // 间隔类参数在「应用更改」时统一写回，这里不处理
-    }
+    /// <summary>解析整数输入框；无效时返回默认值。</summary>
+    private static int ParseInt(string text, int fallback)
+        => int.TryParse(text?.Trim(), out var v) ? v : fallback;
 
     // ---------- 文件夹管理 ----------
 
@@ -225,8 +268,8 @@ public sealed partial class SettingsPage : Page
             return;
         }
 
-        _s.SettleSeconds = (int)Math.Clamp(SettleSeconds.Value, 2, 60);
-        _s.RegistryPollSeconds = (int)Math.Clamp(RegistryPollSeconds.Value, 10, 3600);
+        _s.SettleSeconds = Math.Clamp(ParseInt(SettleSeconds.Text, _s.SettleSeconds), 2, 60);
+        _s.RegistryPollSeconds = Math.Clamp(ParseInt(RegistryPollSeconds.Text, _s.RegistryPollSeconds), 10, 3600);
         _s.Save();
 
         if (_s.ModuleFileEnabled) App.Manager?.RestartModule("file");

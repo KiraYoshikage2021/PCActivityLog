@@ -34,7 +34,31 @@ public sealed partial class MainWindow : Window
         // 初始页由 XAML 中 NavigationViewItem 的 IsSelected="True" 触发 SelectionChanged 加载；
         // 这里不再重复 Navigate，避免与 SelectionChanged 竞争导致内容与高亮不一致。
 
+        // 关闭按钮：按设置决定"最小化到托盘"还是"退出程序"
+        AppWindow.Closing += OnAppWindowClosing;
+
         if (App.StartMinimized) HideToTray();
+    }
+
+    /// <summary>
+    /// 点窗口关闭按钮时的处理。
+    /// 注意：WinUI 3 的 Window.Closed 无法取消，必须用 AppWindow.Closing（可 Cancel）。
+    /// </summary>
+    private void OnAppWindowClosing(Microsoft.UI.Windowing.AppWindow sender,
+        Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
+    {
+        if (App.AllowClose) return; // 已在退出流程中（托盘菜单退出）
+
+        if (App.Settings?.MinimizeToTrayOnClose == true)
+        {
+            args.Cancel = true;  // 取消关闭
+            HideToTray();        // 隐藏到托盘
+        }
+        else
+        {
+            args.Cancel = true;              // 先取消，走统一退出流程（含资源释放）
+            (App.Current as App)?.ExitApplication();
+        }
     }
 
     // ---------- Mica ----------
