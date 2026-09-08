@@ -6,7 +6,8 @@
     Background="{ThemeResource PageBgBrush}">
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
-        <StackPanel Spacing="14" MaxWidth="1200" HorizontalAlignment="Stretch">
+        <!-- 铺满可用宽度（不再限宽居中），宽屏下卡片和图表充分展开 -->
+        <StackPanel Spacing="14" HorizontalAlignment="Stretch">
 
 
             <!-- 汇总卡片（手写，避免 DataTemplate 里的复杂绑定） -->

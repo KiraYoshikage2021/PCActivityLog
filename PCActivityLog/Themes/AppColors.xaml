@@ -28,11 +28,11 @@
             <SolidColorBrush x:Key="StatCyanBrush" Color="#0891B2"/>
             <SolidColorBrush x:Key="StatSlateBrush" Color="#475569"/>
             <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
-            <!-- 柱状图专用：低饱和 + 半透明（比徽章色柔和，避免图表过于抢眼） -->
-            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#7A93C8" Opacity="0.62"/>
-            <SolidColorBrush x:Key="ChartAppBrush"      Color="#7FB89A" Opacity="0.62"/>
-            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#7BADC4" Opacity="0.62"/>
-            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#B8C4D4" Opacity="0.62"/>
+            <!-- 柱状图专用：沿用徽章的高饱和色相 + 半透明（鲜艳但柔和） -->
+            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#2563EB" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartAppBrush"      Color="#16A34A" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#0891B2" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#94A3B8" Opacity="0.85"/>
         </ResourceDictionary>
 
         <!-- ============ 深色 ============ -->
@@ -59,11 +59,11 @@
             <SolidColorBrush x:Key="StatCyanBrush" Color="#22D3EE"/>
             <SolidColorBrush x:Key="StatSlateBrush" Color="#94A3B8"/>
             <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
-            <!-- 柱状图专用：低饱和 + 半透明（深色下略亮以保证可读） -->
-            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#8FA8DC" Opacity="0.55"/>
-            <SolidColorBrush x:Key="ChartAppBrush"      Color="#8FCCA8" Opacity="0.55"/>
-            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#8AC0D6" Opacity="0.55"/>
-            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#94A3B8" Opacity="0.5"/>
+            <!-- 柱状图专用：深色下用提亮版高饱和色 + 半透明 -->
+            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#60A5FA" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartAppBrush"      Color="#4ADE80" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#22D3EE" Opacity="0.85"/>
+            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#64748B" Opacity="0.85"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>
