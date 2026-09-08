@@ -26,9 +26,13 @@ public sealed partial class AddEventDialog : ContentDialog
         CloseButtonText = "取消";
         DefaultButton = ContentDialogButton.Primary;
 
-        foreach (EventType t in Enum.GetValues(typeof(EventType)))
-            _typeBox.Items.Add(TypeDisplay(t));
-        _typeBox.SelectedIndex = 3; // 默认"安装"
+        // 每个下拉项直接携带其 EventType（存在 ComboBoxItem.Tag），
+        // 避免"显示顺序"与"索引→类型映射表"两套逻辑不一致导致写错类型。
+        var allTypes = Enum.GetValues<EventType>();
+        foreach (var t in allTypes)
+            _typeBox.Items.Add(new ComboBoxItem { Content = TypeDisplay(t), Tag = t });
+        // 默认选中"安装"
+        _typeBox.SelectedIndex = Math.Max(0, Array.IndexOf(allTypes, EventType.Install));
 
         _datePicker.SelectedDate = DateTimeOffset.Now;
         _timePicker.SelectedTime = DateTimeOffset.Now.TimeOfDay;
@@ -55,7 +59,7 @@ public sealed partial class AddEventDialog : ContentDialog
             var time = _timePicker.Time;
             Result = new ActivityEvent
             {
-                Type = IndexToType(_typeBox.SelectedIndex),
+                Type = (_typeBox.SelectedItem as ComboBoxItem)?.Tag as EventType? ?? EventType.Manual,
                 Name = _nameBox.Text.Trim(),
                 Path = string.IsNullOrWhiteSpace(_pathBox.Text) ? null : _pathBox.Text.Trim(),
                 Note = string.IsNullOrWhiteSpace(_noteBox.Text) ? null : _noteBox.Text.Trim(),
@@ -78,6 +82,7 @@ public sealed partial class AddEventDialog : ContentDialog
         return p;
     }
 
+    /// <summary>事件类型的中文名（与 EventType 枚举一一对应，缺项会退回枚举名而非"手动"）。</summary>
     private static string TypeDisplay(EventType t) => t switch
     {
         EventType.Download => "下载",
@@ -89,22 +94,11 @@ public sealed partial class AddEventDialog : ContentDialog
         EventType.Uninstall => "卸载",
         EventType.Boot => "开机",
         EventType.Shutdown => "关机",
+        EventType.Restart => "重启",
+        EventType.Sleep => "睡眠",
+        EventType.Wake => "唤醒",
         EventType.Browse => "浏览",
-        _ => "手动",
-    };
-
-    private static EventType IndexToType(int i) => i switch
-    {
-        0 => EventType.Download,
-        1 => EventType.FileDelete,
-        2 => EventType.FileRename,
-        3 => EventType.Install,
-        4 => EventType.Update,
-        5 => EventType.Uninstall,
-        6 => EventType.Boot,
-        7 => EventType.Shutdown,
-        8 => EventType.Browse,
-        9 => EventType.ImFile,
-        _ => EventType.Manual,
+        EventType.Manual => "手动",
+        _ => t.ToString(),
     };
 }

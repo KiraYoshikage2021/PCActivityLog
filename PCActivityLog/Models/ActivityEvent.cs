@@ -59,14 +59,20 @@ public class ActivityEvent
         Extra = node.ToJsonString();
     }
 
-    /// <summary>从 Extra 读取一个字符串值，不存在返回 null。</summary>
+    /// <summary>
+    /// 从 Extra 读取一个字符串值，不存在返回 null。
+    /// 用 ToString() 而非 GetValue&lt;string&gt;()：JSON 里的数字/布尔节点
+    /// 调用 GetValue&lt;string&gt;() 会抛异常（曾导致关联事件 id 读不到、功能失效）。
+    /// </summary>
     public string? GetExtraString(string key)
     {
         if (Extra is null) return null;
         try
         {
             var node = JsonNode.Parse(Extra)?[key];
-            return node?.GetValue<string>();
+            if (node is null) return null;
+            // 字符串节点去掉引号，其余类型（数字/布尔）直接转字符串
+            return node is JsonValue v && v.TryGetValue<string>(out var s) ? s : node.ToString();
         }
         catch { return null; }
     }
@@ -74,8 +80,21 @@ public class ActivityEvent
     /// <summary>从 Extra 读取一个长整型值（如关联事件 id），不存在返回 null。</summary>
     public long? GetExtraLong(string key)
     {
-        var s = GetExtraString(key);
-        return long.TryParse(s, out var v) ? v : null;
+        if (Extra is null) return null;
+        try
+        {
+            var node = JsonNode.Parse(Extra)?[key];
+            if (node is null) return null;
+            // 直接尝试数字类型，兼容旧数据里的字符串形式
+            if (node is JsonValue v)
+            {
+                if (v.TryGetValue<long>(out var l)) return l;
+                if (v.TryGetValue<int>(out var i)) return i;
+                if (v.TryGetValue<string>(out var s) && long.TryParse(s, out var parsed)) return parsed;
+            }
+            return null;
+        }
+        catch { return null; }
     }
 
     /// <summary>用于日志/诊断的简短描述。</summary>

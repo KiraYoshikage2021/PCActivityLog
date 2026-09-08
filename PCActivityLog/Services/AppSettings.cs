@@ -148,13 +148,28 @@ public class AppSettings
         return fresh;
     }
 
-    /// <summary>保存到磁盘（静默失败，只记日志）。</summary>
+    /// <summary>保存用的锁（UI 线程与托盘线程都可能调用 Save）。</summary>
+    private static readonly object SaveLock = new();
+
+    /// <summary>
+    /// 保存到磁盘（原子写：先写临时文件再替换，避免写一半崩溃导致配置损坏）。
+    /// 损坏的配置会被 Load 回退到全新默认值，等于丢失用户全部设置，所以必须原子写。
+    /// </summary>
     public void Save()
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(SettingsFile)!);
-            File.WriteAllText(SettingsFile, JsonSerializer.Serialize(this, JsonOpts));
+            var dir = Path.GetDirectoryName(SettingsFile)!;
+            Directory.CreateDirectory(dir);
+            var json = JsonSerializer.Serialize(this, JsonOpts);
+
+            lock (SaveLock)
+            {
+                var tmp = SettingsFile + ".tmp";
+                File.WriteAllText(tmp, json, System.Text.Encoding.UTF8);
+                // File.Move(overwrite:true) 在同一卷上是原子替换
+                File.Move(tmp, SettingsFile, overwrite: true);
+            }
         }
         catch (Exception ex)
         {
@@ -181,7 +196,7 @@ public class AppSettings
 
         // 列宽白名单过滤：只保留合法列名，丢弃历史遗留的编码损坏键
         // （GBK/UTF-8 误解码会产生形如"鏃堕棿"的伪汉字，看起来像正常中文但匹配不上列标题）
-        var validColumns = new HashSet<string> { "时间", "类型", "名称", "大小 / 版本", "路径 / 网址", "备注" };
+        var validColumns = new HashSet<string> { "时间", "类型", "名称", "大小 / 版本", "路径", "备注" };
         foreach (var key in ColumnWidths.Keys.Where(k => !validColumns.Contains(k)).ToList())
             ColumnWidths.Remove(key);
     }

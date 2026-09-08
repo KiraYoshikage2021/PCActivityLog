@@ -173,9 +173,11 @@ public sealed partial class MainWindow : Window
                 catch (Exception ex2) { DiagnosticsLog.Error("托盘图标回退也失败", ex2); }
             }
 
-            // 托盘菜单统一由 Win32 原生菜单实现（见 ShowTrayMenu）：
-            // H.NotifyIcon 的 ContextFlyout/MenuActivation 在窗口隐藏到托盘时无法弹出菜单，
-            // 且与 Win32 菜单并存会导致两套菜单互相干扰，故不再使用 ContextFlyout。
+            // 托盘菜单统一由 Win32 原生菜单实现（见 ShowTrayMenu）。
+            // 关键：MenuActivation 必须设为 None，否则 H.NotifyIcon 在收到右键消息时
+            // 会自己尝试 ShowContextMenu（窗口无 XamlRoot → 抛 ArgumentException，
+            // 且与 Win32 菜单冲突，出现"两套菜单/菜单显示异常"）。
+            _tray.MenuActivation = H.NotifyIcon.Core.PopupActivationMode.None;
             _tray.LeftClickCommand = new RelayCommand(ShowFromTray);
             _tray.RightClickCommand = new RelayCommand(ShowTrayMenu);
             _tray.ForceCreate();

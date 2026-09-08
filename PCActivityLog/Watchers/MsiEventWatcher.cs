@@ -73,33 +73,41 @@ public class MsiEventWatcher : IDisposable
         {
             var record = e.EventRecord;
             if (record is null) return;
-
-            var productName = ExtractProductName(record);
-            if (string.IsNullOrWhiteSpace(productName))
+            using (record) // EventRecord 实现 IDisposable，必须释放非托管句柄
             {
-                DiagnosticsLog.Warn($"MSI 事件 {record.Id}：未能提取产品名，跳过");
-                return;
+                HandleRecord(record);
             }
-
-            // 先登记进共享去重表，注册表通道稍后轮询到同一软件就不会重复记录
-            _dedupe.Add(productName);
-
-            var isInstall = record.Id == 11707;
-            if ((isInstall && !_settings.RecordInstalls) || (!isInstall && !_settings.RecordUninstalls))
-                return;
-
-            _sink.Dispatch(new ActivityEvent
-            {
-                Type = isInstall ? EventType.Install : EventType.Uninstall,
-                Name = productName,
-                Source = "msi",
-                OccurredAt = record.TimeCreated?.ToLocalTime() ?? DateTime.Now,
-            });
         }
         catch (Exception ex)
         {
             DiagnosticsLog.Error("处理 MSI 事件异常", ex);
         }
+    }
+
+    /// <summary>处理单条 MSI 事件记录（调用方负责 Dispose）。</summary>
+    private void HandleRecord(EventRecord record)
+    {
+        var productName = ExtractProductName(record);
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            DiagnosticsLog.Warn($"MSI 事件 {record.Id}：未能提取产品名，跳过");
+            return;
+        }
+
+        // 先登记进共享去重表，注册表通道稍后轮询到同一软件就不会重复记录
+        _dedupe.Add(productName);
+
+        var isInstall = record.Id == 11707;
+        if ((isInstall && !_settings.RecordInstalls) || (!isInstall && !_settings.RecordUninstalls))
+            return;
+
+        _sink.Dispatch(new ActivityEvent
+        {
+            Type = isInstall ? EventType.Install : EventType.Uninstall,
+            Name = productName,
+            Source = "msi",
+            OccurredAt = record.TimeCreated?.ToLocalTime() ?? DateTime.Now,
+        });
     }
 
     /// <summary>从事件记录中提取产品名：优先正则匹配消息文案，取不到再试第一个属性。</summary>

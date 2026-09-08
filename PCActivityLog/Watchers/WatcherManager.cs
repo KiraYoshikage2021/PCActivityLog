@@ -73,6 +73,22 @@ public class WatcherManager : IEventSink, IDisposable
         if (_settings.ModuleImEnabled) SafeStart(Get("imfile"));
     }
 
+    /// <summary>启动模块（null 安全，模块不存在时忽略）。</summary>
+    private static void SafeStart(IWatcherModule? m)
+    {
+        if (m is null) return;
+        try { m.Start(); }
+        catch (Exception ex) { DiagnosticsLog.Error($"模块 {m.DisplayName} 启动失败", ex); }
+    }
+
+    /// <summary>停止模块（null 安全）。</summary>
+    private static void SafeStop(IWatcherModule? m)
+    {
+        if (m is null) return;
+        try { m.Stop(); }
+        catch (Exception ex) { DiagnosticsLog.Error($"模块 {m.DisplayName} 停止失败", ex); }
+    }
+
     /// <summary>停止全部模块（退出程序时调用；已入库数据不受影响）。</summary>
     public void StopAll()
     {
@@ -82,40 +98,41 @@ public class WatcherManager : IEventSink, IDisposable
         }
     }
 
-    /// <summary>运行中开关某模块（设置页调用，立即生效）。</summary>
+    /// <summary>运行中开关某模块（设置页调用，立即生效）。模块不存在时静默忽略。</summary>
     public void SetModuleEnabled(string moduleId, bool enabled)
     {
         var module = Get(moduleId);
+        if (module is null)
+        {
+            DiagnosticsLog.Warn($"SetModuleEnabled：模块 {moduleId} 不存在，忽略");
+            return;
+        }
         if (enabled) SafeStart(module);
         else SafeStop(module);
     }
 
-    /// <summary>模块配置变化后重启该模块（如改了监视文件夹列表、轮询间隔）。</summary>
+    /// <summary>模块配置变化后重启该模块（如改了监视文件夹列表、轮询间隔）。模块不存在时静默忽略。</summary>
     public void RestartModule(string moduleId)
     {
         var module = Get(moduleId);
+        if (module is null)
+        {
+            DiagnosticsLog.Warn($"RestartModule：模块 {moduleId} 不存在，忽略");
+            return;
+        }
         SafeStop(module);
         SafeStart(module);
     }
 
-    private IWatcherModule Get(string id)
+    /// <summary>
+    /// 按 Id 查找模块。找不到返回 null（容错）——调用方可能引用了已移除的模块
+    /// （如历史遗留的 "browser"），此时应静默忽略而不是抛异常中断 UI 线程。
+    /// </summary>
+    private IWatcherModule? Get(string id)
     {
-        lock (_lock) return _modules.First(m => m.Id == id);
+        lock (_lock) return _modules.FirstOrDefault(m => m.Id == id);
     }
 
-    private static void SafeStart(IWatcherModule m)
-    {
-        try { m.Start(); }
-        catch (Exception ex) { DiagnosticsLog.Error($"模块 {m.DisplayName} 启动失败", ex); }
-    }
-
-    private static void SafeStop(IWatcherModule m)
-    {
-        try { m.Stop(); }
-        catch (Exception ex) { DiagnosticsLog.Error($"模块 {m.DisplayName} 停止失败", ex); }
-    }
-
-    /// <summary>各模块运行状态（供设置页/状态栏显示）。</summary>
     public Dictionary<string, bool> GetRunningStates()
     {
         lock (_lock) return _modules.ToDictionary(m => m.Id, m => m.IsRunning);

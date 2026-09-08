@@ -92,14 +92,17 @@ public class SystemEventWatcher : IWatcherModule
             {
                 while (reader.ReadEvent() is { } rec)
                 {
-                    if (rec.TimeCreated?.ToLocalTime() is not { } t) continue;
-                    // 反向读取：一旦遇到不晚于游标的事件，后面的只会更旧，可以安全停止。
-                    // 注意用秒精度比较：数据库 occurred_at 只存到秒，
-                    // 若用毫秒比较，同一秒内毫秒更大的事件会被误判为新事件而重复入库。
-                    if (cursorTime.HasValue && TruncateToSecond(t) <= TruncateToSecond(cursorTime.Value)) break;
+                    using (rec) // EventRecord 实现 IDisposable，必须释放非托管句柄
+                    {
+                        if (rec.TimeCreated?.ToLocalTime() is not { } t) continue;
+                        // 反向读取：一旦遇到不晚于游标的事件，后面的只会更旧，可以安全停止。
+                        // 注意用秒精度比较：数据库 occurred_at 只存到秒，
+                        // 若用毫秒比较，同一秒内毫秒更大的事件会被误判为新事件而重复入库。
+                        if (cursorTime.HasValue && TruncateToSecond(t) <= TruncateToSecond(cursorTime.Value)) break;
 
-                    collected.Add((t, rec.Id, SafeMessage(rec)));
-                    if (collected.Count >= 500) break; // 防御性上限（正常远达不到）
+                        collected.Add((t, rec.Id, SafeMessage(rec)));
+                        if (collected.Count >= 500) break; // 防御性上限（正常远达不到）
+                    }
                 }
             }
 

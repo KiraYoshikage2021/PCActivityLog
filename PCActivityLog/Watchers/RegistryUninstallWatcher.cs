@@ -40,12 +40,13 @@ public class RegistryUninstallWatcher : IDisposable
 
     private enum ChangeKind { Install, Uninstall, Update }
 
-    /// <summary>要轮询的三处卸载注册表根路径。</summary>
-    private static readonly string[] Roots =
-    {
-        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
-        @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
-    };
+    /// <summary>
+    /// 卸载信息的注册表路径（HKLM 下的原生路径；32 位视图访问同一路径会自动重定向到 WOW6432Node）。
+    /// 不要在此再列 WOW6432Node —— 那会与 32 位视图重复采集同一批键。
+    /// </summary>
+    private const string NativeRoot = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
+
+    /// <summary>HKCU 下的卸载信息路径。</summary>
     private const string HkcuRoot = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
 
     public RegistryUninstallWatcher(AppSettings settings, IEventSink sink, RecentNameFilter msiDedupe)
@@ -72,8 +73,11 @@ public class RegistryUninstallWatcher : IDisposable
     {
         _pollTimer?.Dispose();
         _pollTimer = null;
-        _pendingChanges.Clear();
-        _lastSnapshot.Clear();
+        lock (_lock)
+        {
+            _pendingChanges.Clear();
+            _lastSnapshot.Clear();
+        }
     }
 
     public void Dispose() => Stop();
@@ -81,31 +85,61 @@ public class RegistryUninstallWatcher : IDisposable
     // ================= 轮询与对比 =================
 
     /// <summary>一轮轮询：复核挂起变化 + 对比新快照。全程 try/catch。</summary>
+    /// <summary>保护 _lastSnapshot / _pendingChanges 的锁（轮询线程与 Stop/Start 并发访问）。</summary>
+    private readonly object _lock = new();
+
+    /// <summary>重入闸：上一轮未结束则跳过本轮（扫描可能超过轮询间隔）。</summary>
+    private int _polling;
+
     private void SafePoll()
     {
+        // 重入保护：Timer 不保证回调串行，扫描耗时超过间隔时会并发进入
+        if (Interlocked.CompareExchange(ref _polling, 1, 0) != 0) return;
         try
         {
             var current = TakeSnapshot();
-            VerifyPending(current);
-            DiffSnapshots(current);
-            _lastSnapshot = current;
+            lock (_lock)
+            {
+                VerifyPending(current);
+                DiffSnapshots(current);
+                _lastSnapshot = current;
+            }
         }
         catch (Exception ex)
         {
             DiagnosticsLog.Error("注册表轮询异常", ex);
         }
+        finally
+        {
+            Interlocked.Exchange(ref _polling, 0);
+        }
     }
 
-    /// <summary>扫描三处卸载注册表，返回 键路径→条目。</summary>
+    /// <summary>
+    /// 扫描三处卸载注册表，返回 键路径→条目。
+    ///
+    /// 注意避免重复采集：`Registry64 + SOFTWARE\WOW6432Node\...` 与
+    /// `Registry32 + SOFTWARE\Microsoft\...\Uninstall` 返回的是同一批键
+    /// （32 位视图会自动重定向到 WOW6432Node）。此前两者都采，导致
+    /// 每款 32 位软件在快照中出现两次，安装/卸载事件翻倍。
+    /// 正确做法：HKLM64 只采原生路径，HKLM32 采其原生路径（自动重定向到 WOW6432Node）。
+    /// </summary>
     private static Dictionary<string, AppEntry> TakeSnapshot()
     {
         var dict = new Dictionary<string, AppEntry>(StringComparer.OrdinalIgnoreCase);
-        using var hkcu = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default);
-        Collect(dict, hkcu, HkcuRoot, "HKCU");
-        using var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
-        foreach (var root in Roots) Collect(dict, hklm, root, "HKLM64");
-        using var hklm32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32);
-        Collect(dict, hklm32, Roots[1], "HKLM32");
+
+        // HKCU：当前用户的卸载信息
+        using (var hkcu = RegistryKey.OpenBaseKey(RegistryHive.CurrentUser, RegistryView.Default))
+            Collect(dict, hkcu, HkcuRoot, "HKCU");
+
+        // HKLM 64 位视图：64 位软件（原生路径）
+        using (var hklm64 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+            Collect(dict, hklm64, NativeRoot, "HKLM64");
+
+        // HKLM 32 位视图：32 位软件（32 位视图下访问原生路径会自动重定向到 WOW6432Node）
+        using (var hklm32 = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32))
+            Collect(dict, hklm32, NativeRoot, "HKLM32");
+
         return dict;
     }
 

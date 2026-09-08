@@ -34,7 +34,7 @@ public class DownloadWatcher : IWatcherModule
     private System.Threading.Timer? _scanTimer;
 
     /// <summary>待判定文件表：路径 → (上次大小, 大小首次稳定的时间, 首次见到的时间)。</summary>
-    private readonly Dictionary<string, (long Size, DateTime? StableSince, DateTime FirstSeen)> _pending = new();
+    private readonly Dictionary<string, (long Size, DateTime? StableSince, DateTime LastProgress)> _pending = new();
 
     /// <summary>近期已记录的下载（5 分钟去重）：路径 → 记录时间。</summary>
     private readonly Dictionary<string, DateTime> _recentDownloads = new(StringComparer.OrdinalIgnoreCase);
@@ -208,7 +208,7 @@ public class DownloadWatcher : IWatcherModule
                     var st = _pending[path];
 
                     // TTL 驱逐：10 分钟还没稳定（超大文件或异常状态）就放弃跟踪
-                    if (now - st.FirstSeen > TimeSpan.FromMinutes(10))
+                    if (now - st.LastProgress > TimeSpan.FromMinutes(10))
                     {
                         _pending.Remove(path);
                         continue;
@@ -225,14 +225,14 @@ public class DownloadWatcher : IWatcherModule
                     {
                         // 大小没变：记录"从何时起稳定"
                         if (st.StableSince is null)
-                            _pending[path] = (size, now, st.FirstSeen);
+                            _pending[path] = (size, now, st.LastProgress);
                         else if (now - st.StableSince.Value >= TimeSpan.FromSeconds(_settings.SettleSeconds))
                             settled.Add(path);
                     }
                     else
                     {
                         // 还在写入：刷新大小、重置稳定计时
-                        _pending[path] = (size, null, st.FirstSeen);
+                        _pending[path] = (size, null, now); // 大小在变 → 刷新进度时刻
                     }
                 }
 

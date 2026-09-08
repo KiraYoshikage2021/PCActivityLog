@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     xmlns:vm="using:PCActivityLog.ViewModels"
+    NavigationCacheMode="Enabled"
     Background="{ThemeResource PageBgBrush}">
 
     <Grid Padding="16,16,16,8" RowSpacing="10">
