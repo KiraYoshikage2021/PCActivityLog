@@ -58,7 +58,7 @@ public class WatcherManager : IEventSink, IDisposable
             _modules.Add(new DownloadWatcher(_settings, this));
             _modules.Add(new AppWatcher(_settings, this));
             _modules.Add(new SystemEventWatcher(this, _db));
-            _modules.Add(new BrowserHistoryWatcher(_settings, this, _db));
+            // 浏览器历史记录功能已移除（用户要求不再采集，历史数据已清理）
             _modules.Add(new ImFileWatcher(_settings, this));
         }
     }
@@ -70,7 +70,6 @@ public class WatcherManager : IEventSink, IDisposable
         if (_settings.ModuleFileEnabled) SafeStart(Get("file"));
         if (_settings.ModuleAppEnabled) SafeStart(Get("app"));
         if (_settings.ModuleSystemEnabled) SafeStart(Get("system"));
-        if (_settings.ModuleBrowserEnabled) SafeStart(Get("browser"));
         if (_settings.ModuleImEnabled) SafeStart(Get("imfile"));
     }
 

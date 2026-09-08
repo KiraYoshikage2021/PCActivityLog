@@ -17,7 +17,6 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <Border Grid.Column="0" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
@@ -57,18 +56,6 @@
                 </Border>
 
                 <Border Grid.Column="3" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
-                        BorderThickness="1" CornerRadius="10" Padding="16,14">
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <TextBlock Text="🌐" FontSize="26" VerticalAlignment="Center"/>
-                        <StackPanel>
-                            <TextBlock Text="本月浏览" FontSize="12" Foreground="{ThemeResource TextSecondaryBrush}"/>
-                            <TextBlock Text="{x:Bind Vm.MonthBrowses, Mode=OneWay}" FontSize="26" FontWeight="Bold"
-                                       Foreground="{ThemeResource StatCyanBrush}"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Border>
-
-                <Border Grid.Column="4" Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                         BorderThickness="1" CornerRadius="10" Padding="16,14">
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <TextBlock Text="🔢" FontSize="26" VerticalAlignment="Center"/>

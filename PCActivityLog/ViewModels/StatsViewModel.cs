@@ -24,7 +24,6 @@ public partial class StatsViewModel : ObservableObject
     [ObservableProperty] private int monthDownloads;
     [ObservableProperty] private string monthDownloadBytesText = "0";
     [ObservableProperty] private int monthInstalls;
-    [ObservableProperty] private int monthBrowses;
     [ObservableProperty] private long totalEvents;
 
     public ObservableCollection<ChartColumn> Columns { get; } = new();
@@ -43,12 +42,10 @@ public partial class StatsViewModel : ObservableObject
             MonthDownloads = cards.MonthDownloads;
             MonthDownloadBytesText = FormatBytes(cards.MonthDownloadBytes);
             MonthInstalls = cards.MonthInstalls;
-            MonthBrowses = cards.MonthBrowses;
             TotalEvents = cards.TotalEvents;
 
             var downloadBrush = ThemeService.FindBrush("ChartDownloadBrush"); // 低饱和+半透明专用色
             var appBrush = ThemeService.FindBrush("ChartAppBrush");
-            var browseBrush = ThemeService.FindBrush("ChartBrowseBrush");
             var otherBrush = ThemeService.FindBrush("ChartOtherBrush");
 
             var months = _repo.GetMonthly(12);
@@ -59,7 +56,6 @@ public partial class StatsViewModel : ObservableObject
                 {
                     new ChartSegment(m.Downloads, downloadBrush, "下载"),
                     new ChartSegment(m.Apps,    appBrush, "应用"),
-                    new ChartSegment(m.Browses, browseBrush, "浏览"),
                     new ChartSegment(m.Others,  otherBrush, "其他"),
                 }));
             }
@@ -70,7 +66,6 @@ public partial class StatsViewModel : ObservableObject
             Legend.Clear();
             Legend.Add(new ChartSegment(0, downloadBrush, "下载"));
             Legend.Add(new ChartSegment(0, appBrush, "应用"));
-            Legend.Add(new ChartSegment(0, browseBrush, "浏览"));
             Legend.Add(new ChartSegment(0, otherBrush, "其他"));
         }
         catch (Exception ex) { DiagnosticsLog.Error("统计刷新失败", ex); }

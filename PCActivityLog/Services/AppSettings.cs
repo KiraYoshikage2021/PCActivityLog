@@ -22,8 +22,8 @@ public class AppSettings
     /// <summary>系统监视模块总开关（开机/关机记录）。</summary>
     public bool ModuleSystemEnabled { get; set; } = true;
 
-    /// <summary>浏览器记录模块总开关。</summary>
-    public bool ModuleBrowserEnabled { get; set; } = true;
+    /// <summary>浏览器记录模块（已移除该功能，保留字段仅为兼容旧配置文件）。</summary>
+    public bool ModuleBrowserEnabled { get; set; } = false;
 
     // ---------- 微信/QQ 文件监视子开关与参数 ----------
 

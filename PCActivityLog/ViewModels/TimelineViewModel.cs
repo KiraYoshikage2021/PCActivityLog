@@ -22,6 +22,12 @@ public record GroupOption(EventGroup Group, string Name)
     public override string ToString() => Name;
 }
 
+/// <summary>时间范围快捷选项（Days = 往前天数；0 表示不限）。</summary>
+public record DateRangeOption(int Days, string Name)
+{
+    public override string ToString() => Name;
+}
+
 /// <summary>
 /// 时间线页 ViewModel（WinUI 版）—— 筛选/搜索/分页/导出/打开位置/关联跳转。
 /// 与 WPF 版的差异：
@@ -52,16 +58,18 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
     /// <summary>由页面注入：跳转/选中某行（滚动到目标）。</summary>
     public Action<int>? SelectRequested { get; set; }
 
-    [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.AllNoBrowse, "全部");
+    [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.All, "全部");
     [ObservableProperty] private string searchText = "";
     [ObservableProperty] private DateTimeOffset? dateFrom;
     [ObservableProperty] private DateTimeOffset? dateTo;
+    [ObservableProperty] private DateRangeOption selectedRange;
     [ObservableProperty] private string statusText = "就绪";
     [ObservableProperty] private bool hasMore;
     [ObservableProperty] private ActivityEventItem? selectedItem;
 
     public ObservableCollection<ActivityEventItem> Items { get; } = new();
     public ObservableCollection<GroupOption> Groups { get; } = new();
+    public ObservableCollection<DateRangeOption> DateRanges { get; } = new();
 
     public TimelineViewModel(Database db, WriteQueue queue, ExportService exporter)
     {
@@ -72,6 +80,16 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
 
         foreach (EventGroup g in Enum.GetValues(typeof(EventGroup)))
             Groups.Add(new GroupOption(g, g.ToDisplayName()));
+
+        // 时间范围快捷选项；默认"最近 3 天"（避免一次加载上千条历史拖慢界面）
+        DateRanges.Add(new DateRangeOption(0, "今天"));
+        DateRanges.Add(new DateRangeOption(3, "最近 3 天"));
+        DateRanges.Add(new DateRangeOption(7, "最近 7 天"));
+        DateRanges.Add(new DateRangeOption(30, "最近 30 天"));
+        DateRanges.Add(new DateRangeOption(90, "最近 90 天"));
+        DateRanges.Add(new DateRangeOption(-1, "全部"));
+        SelectedRange = DateRanges.First(r => r.Days == 3);
+        ApplyRange(SelectedRange); // 初始化 dateFrom/dateTo
 
         _debounce = _dispatcher.CreateTimer();
         _debounce.Interval = TimeSpan.FromMilliseconds(400);
@@ -99,12 +117,35 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
     partial void OnDateToChanged(DateTimeOffset? value) => Refresh();
     partial void OnSearchTextChanged(string value) { _debounce?.Stop(); _debounce?.Start(); }
 
-    /// <summary>搜索防抖到期：若在"全部"视图则先扩到"全部（含浏览）"再查。</summary>
+    /// <summary>时间范围切换：按选项设置 dateFrom/dateTo 并刷新。</summary>
+    partial void OnSelectedRangeChanged(DateRangeOption value)
+    {
+        if (value is null) return;
+        ApplyRange(value);
+        Refresh();
+    }
+
+    /// <summary>
+    /// 把时间范围选项换算成日期区间。
+    /// Days &gt; 0：从"今天 - (Days-1)"到今天（含今天）；Days = 0：仅今天；Days &lt; 0：不限（清空区间）。
+    /// </summary>
+    private void ApplyRange(DateRangeOption range)
+    {
+        if (range.Days < 0)
+        {
+            DateFrom = null;
+            DateTo = null;
+            return;
+        }
+        var today = DateTime.Today;
+        DateFrom = new DateTimeOffset(today.AddDays(-(range.Days - 1)));
+        DateTo = new DateTimeOffset(today);
+    }
+
+    /// <summary>搜索防抖到期后执行查询。</summary>
     private void OnDebounceTick()
     {
         _debounce?.Stop();
-        if (!string.IsNullOrWhiteSpace(SearchText) && SelectedGroup.Group == EventGroup.AllNoBrowse)
-            SelectedGroup = Groups.Last(g => g.Group == EventGroup.All);
         Refresh();
     }
 

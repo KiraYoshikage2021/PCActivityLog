@@ -45,12 +45,6 @@ public sealed partial class SettingsPage : Page
         ImWechat.IsChecked = _s.ImWechat;
         ImQq.IsChecked = _s.ImQq;
 
-        BrowserModuleSwitch.IsOn = _s.ModuleBrowserEnabled;
-        BrowserChrome.IsChecked = _s.BrowserChrome;
-        BrowserEdge.IsChecked = _s.BrowserEdge;
-        BrowserFirefox.IsChecked = _s.BrowserFirefox;
-        BrowserPollMinutes.Value = _s.BrowserPollMinutes;
-        BrowserRetentionDays.Value = _s.BrowserRetentionDays;
 
         NotificationsEnabled.IsOn = _s.NotificationsEnabled;
         NotifyDownloads.IsChecked = _s.NotifyDownloads;
@@ -109,12 +103,6 @@ public sealed partial class SettingsPage : Page
         App.Manager?.SetModuleEnabled("imfile", _s.ModuleImEnabled);
     }
 
-    private void BrowserModule_Toggled(object sender, RoutedEventArgs e)
-    {
-        if (_loading) return;
-        _s.ModuleBrowserEnabled = BrowserModuleSwitch.IsOn; _s.Save();
-        App.Manager?.SetModuleEnabled("browser", _s.ModuleBrowserEnabled);
-    }
 
     // ---------- 子开关（即时读取，无需重启） ----------
 
@@ -129,9 +117,6 @@ public sealed partial class SettingsPage : Page
         _s.RecordUninstalls = RecordUninstalls.IsChecked == true;
         _s.ImWechat = ImWechat.IsChecked == true;
         _s.ImQq = ImQq.IsChecked == true;
-        _s.BrowserChrome = BrowserChrome.IsChecked == true;
-        _s.BrowserEdge = BrowserEdge.IsChecked == true;
-        _s.BrowserFirefox = BrowserFirefox.IsChecked == true;
         _s.NotifyDownloads = NotifyDownloads.IsChecked == true;
         _s.NotifyApp = NotifyApp.IsChecked == true;
         _s.NotifySystem = NotifySystem.IsChecked == true;
@@ -206,13 +191,10 @@ public sealed partial class SettingsPage : Page
 
         _s.SettleSeconds = (int)Math.Clamp(SettleSeconds.Value, 2, 60);
         _s.RegistryPollSeconds = (int)Math.Clamp(RegistryPollSeconds.Value, 10, 3600);
-        _s.BrowserPollMinutes = (int)Math.Clamp(BrowserPollMinutes.Value, 1, 120);
-        _s.BrowserRetentionDays = Math.Max(0, (int)BrowserRetentionDays.Value);
         _s.Save();
 
         if (_s.ModuleFileEnabled) App.Manager?.RestartModule("file");
         if (_s.ModuleAppEnabled) App.Manager?.RestartModule("app");
-        if (_s.ModuleBrowserEnabled) App.Manager?.RestartModule("browser");
 
         ApplyHint.Text = "设置已应用 ✓";
     }

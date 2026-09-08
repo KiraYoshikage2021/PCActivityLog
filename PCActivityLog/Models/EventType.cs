@@ -121,7 +121,6 @@ public static class EventTypeExtensions
         EventType.Install or EventType.Update or EventType.Uninstall => EventGroup.App,
         EventType.Boot or EventType.Shutdown or EventType.Restart
             or EventType.Sleep or EventType.Wake => EventGroup.System,
-        EventType.Browse => EventGroup.Browse,
         EventType.Manual => EventGroup.Manual,
         _ => EventGroup.Manual,
     };
@@ -130,15 +129,13 @@ public static class EventTypeExtensions
 /// <summary>事件大类 —— 对应时间线页的筛选标签。</summary>
 public enum EventGroup
 {
-    AllNoBrowse, // 全部（默认视图，不含浏览记录）
+    All,         // 全部
     Download,    // 下载
     FileOps,     // 文件操作（删除/重命名）
     ImFile,      // 微信/QQ 文件
     App,         // 应用（安装/更新/卸载）
-    System,      // 系统（开机/关机）
-    Browse,      // 浏览
+    System,      // 系统（开机/关机/重启/睡眠/唤醒）
     Manual,      // 手动
-    All,         // 全部（含浏览）
 }
 
 /// <summary>EventGroup 的辅助方法。</summary>
@@ -147,15 +144,13 @@ public static class EventGroupExtensions
     /// <summary>大类的中文显示名（用于筛选下拉框）。</summary>
     public static string ToDisplayName(this EventGroup g) => g switch
     {
-        EventGroup.AllNoBrowse => "全部",
+        EventGroup.All => "全部",
         EventGroup.Download => "下载",
         EventGroup.FileOps => "文件操作",
         EventGroup.ImFile => "微信/QQ",
         EventGroup.App => "应用",
         EventGroup.System => "系统",
-        EventGroup.Browse => "浏览",
         EventGroup.Manual => "手动",
-        EventGroup.All => "全部（含浏览）",
         _ => g.ToString(),
     };
 
@@ -164,20 +159,13 @@ public static class EventGroupExtensions
     {
         return g switch
         {
-            EventGroup.AllNoBrowse => new[] // 全部但不含浏览（默认视图）
-            {
-                "download", "file_delete", "file_rename", "im_file",
-                "install", "update", "uninstall",
-                "boot", "shutdown", "restart", "sleep", "wake", "manual",
-            },
             EventGroup.Download => new[] { "download" },
             EventGroup.FileOps => new[] { "file_delete", "file_rename" },
             EventGroup.ImFile => new[] { "im_file" },
             EventGroup.App => new[] { "install", "update", "uninstall" },
             EventGroup.System => new[] { "boot", "shutdown", "restart", "sleep", "wake" },
-            EventGroup.Browse => new[] { "browse" },
             EventGroup.Manual => new[] { "manual" },
-            _ => Array.Empty<string>(), // All = 空 = 不过滤（含浏览）
+            _ => Array.Empty<string>(), // All = 空 = 不过滤
         };
     }
 }

@@ -105,34 +105,6 @@
                 </StackPanel>
             </Border>
 
-            <!-- ============ 浏览器记录 ============ -->
-            <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
-                    BorderThickness="1" CornerRadius="10" Padding="16,14">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="浏览器记录" FontSize="14" FontWeight="SemiBold"
-                               Foreground="{ThemeResource TextPrimaryBrush}"/>
-                    <ToggleSwitch x:Name="BrowserModuleSwitch" Header="启用浏览器记录模块" OnContent="开" OffContent="关"
-                                  Toggled="BrowserModule_Toggled"/>
-                    <StackPanel Orientation="Horizontal" Spacing="18">
-                        <CheckBox x:Name="BrowserChrome" Content="Chrome" Click="SubSwitch_Click"/>
-                        <CheckBox x:Name="BrowserEdge" Content="Edge" Click="SubSwitch_Click"/>
-                        <CheckBox x:Name="BrowserFirefox" Content="Firefox" Click="SubSwitch_Click"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="读取间隔（分钟，1-120）：" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
-                        <NumberBox x:Name="BrowserPollMinutes" Width="110" Minimum="1" Maximum="120"
-                                   SpinButtonPlacementMode="Inline" ValueChanged="NumberBox_ValueChanged"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="浏览记录保留天数（0=永久）：" VerticalAlignment="Center"
-                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
-                        <NumberBox x:Name="BrowserRetentionDays" Width="110" Minimum="0" Maximum="3650"
-                                   SpinButtonPlacementMode="Inline" ValueChanged="NumberBox_ValueChanged"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
             <!-- ============ 通知 ============ -->
             <Border Background="{ThemeResource CardBgBrush}" BorderBrush="{ThemeResource CardBorderBrush}"
                     BorderThickness="1" CornerRadius="10" Padding="16,14">

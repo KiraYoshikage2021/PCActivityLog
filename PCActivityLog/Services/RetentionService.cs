@@ -47,7 +47,6 @@ public class RetentionService : IDisposable
             var removed = 0;
 
             if (_settings.BrowserRetentionDays > 0)
-                removed += DeleteOld("browse", now, _settings.BrowserRetentionDays);
 
             if (_settings.OtherRetentionDays > 0)
             {

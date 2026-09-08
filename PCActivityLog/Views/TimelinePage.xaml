@@ -25,6 +25,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -34,17 +35,23 @@
                           SelectedItem="{x:Bind Vm.SelectedGroup, Mode=TwoWay}"
                           DisplayMemberPath="Name"/>
 
-                <TextBox Grid.Column="1" Width="230" PlaceholderText="搜索名称 / 路径 / 网址 / 备注"
+                <!-- 时间范围快捷选择：默认"最近 3 天"，也可选其他范围或自定义 -->
+                <ComboBox Grid.Column="1" Width="112" Margin="0,0,8,0"
+                          ItemsSource="{x:Bind Vm.DateRanges}"
+                          SelectedItem="{x:Bind Vm.SelectedRange, Mode=TwoWay}"
+                          DisplayMemberPath="Name"/>
+
+                <TextBox Grid.Column="2" Width="200" PlaceholderText="搜索名称 / 路径 / 备注"
                          Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <TextBlock Grid.Column="2" Text="从" VerticalAlignment="Center"
+                <TextBlock Grid.Column="3" Text="从" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextSecondaryBrush}"/>
-                <DatePicker Grid.Column="3" Width="130" SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="4" Text="到" VerticalAlignment="Center"
+                <DatePicker Grid.Column="4" Width="130" SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
+                <TextBlock Grid.Column="5" Text="到" VerticalAlignment="Center"
                            Foreground="{ThemeResource TextSecondaryBrush}"/>
-                <DatePicker Grid.Column="5" Width="130" SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
+                <DatePicker Grid.Column="6" Width="130" SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
 
-                <StackPanel Grid.Column="7" Orientation="Horizontal" Spacing="8">
+                <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="8">
                     <Button Content="查询" Command="{x:Bind Vm.RefreshCommand}" Style="{StaticResource AccentButtonStyle}"/>
                     <Button Content="＋ 添加记录" Click="AddEvent_Click"/>
                     <Button Content="导出 CSV" Click="ExportCsv_Click"/>

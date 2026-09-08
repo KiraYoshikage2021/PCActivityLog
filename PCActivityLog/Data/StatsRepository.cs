@@ -16,7 +16,7 @@ public class StatsRepository
     /// <summary>汇总卡片数据（本月/累计）。</summary>
     public record SummaryCards(
         int MonthDownloads, long MonthDownloadBytes, int MonthInstalls,
-        int MonthBrowses, long TotalEvents);
+        long TotalEvents);
 
     /// <summary>查汇总卡片。monthStart = 本月 1 号 0 点。</summary>
     public SummaryCards GetSummary(DateTime monthStart)
@@ -36,7 +36,7 @@ public class StatsRepository
         using var cmd = conn.CreateCommand();
         var monthDownloads = Count(cmd, "download");
         var monthInstalls = Count(cmd, "install");
-        var monthBrowses = Count(cmd, "browse");
+        
 
         cmd.Parameters.Clear();
         cmd.CommandText = "SELECT IFNULL(SUM(size_bytes),0) FROM events WHERE type='download' AND occurred_at>=@from";
@@ -47,11 +47,11 @@ public class StatsRepository
         cmd.CommandText = "SELECT COUNT(*) FROM events";
         var total = (long)cmd.ExecuteScalar()!;
 
-        return new SummaryCards((int)monthDownloads, monthBytes, (int)monthInstalls, (int)monthBrowses, total);
+        return new SummaryCards((int)monthDownloads, monthBytes, (int)monthInstalls, total);
     }
 
     /// <summary>按月分类统计的一行（月份 + 各类别数量）。</summary>
-    public record MonthRow(string Month, int Downloads, int Apps, int Browses, int Others);
+    public record MonthRow(string Month, int Downloads, int Apps, int Others);
 
     /// <summary>查最近 N 个月的分类统计（含本月），按月份升序返回。</summary>
     public List<MonthRow> GetMonthly(int months)
@@ -66,8 +66,7 @@ public class StatsRepository
             SELECT substr(occurred_at,1,7) AS m,
                    SUM(type='download') AS d,
                    SUM(type IN ('install','update','uninstall')) AS a,
-                   SUM(type='browse') AS b,
-                   SUM(type NOT IN ('download','install','update','uninstall','browse')) AS o
+                   SUM(type NOT IN ('download','install','update','uninstall')) AS o
             FROM events
             WHERE occurred_at >= @from
             GROUP BY m ORDER BY m
@@ -78,7 +77,7 @@ public class StatsRepository
         {
             result.Add(new MonthRow(
                 r.GetString(0),
-                ToInt(r, 1), ToInt(r, 2), ToInt(r, 3), ToInt(r, 4)));
+                ToInt(r, 1), ToInt(r, 2), ToInt(r, 3)));
         }
         return result;
     }
