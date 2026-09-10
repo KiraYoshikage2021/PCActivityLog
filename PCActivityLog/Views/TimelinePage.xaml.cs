@@ -36,6 +36,10 @@ public sealed partial class TimelinePage : Page
         };
         Vm.SelectRequested = OnSelectRequested;
 
+        // 用户滚动/点击列表时通知 VM 避让自动刷新（刷新会重建集合打断滚动）
+        Grid.AddHandler(PointerWheelChangedEvent,
+            (Microsoft.UI.Xaml.Input.PointerEventHandler)((_, _) => Vm.NotifyUserActive()), true);
+
         ApplyColumnWidths();
 
         // 页面被 Frame 缓存（CacheSize=3），Loaded 会多次触发：

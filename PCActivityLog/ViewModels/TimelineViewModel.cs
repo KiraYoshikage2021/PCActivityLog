@@ -67,9 +67,13 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool hasMore;
     [ObservableProperty] private ActivityEventItem? selectedItem;
 
-    public ObservableCollection<ActivityEventItem> Items { get; } = new();
+    /// <summary>列表数据（批量替换集合：刷新时只发一次 Reset，避免几百次逐条通知卡顿）。</summary>
+    public BulkObservableCollection<ActivityEventItem> Items { get; } = new();
     public ObservableCollection<GroupOption> Groups { get; } = new();
     public ObservableCollection<DateRangeOption> DateRanges { get; } = new();
+
+    /// <summary>最近一次用户滚动/交互时间（自动刷新避开用户正在滚动的时刻）。</summary>
+    private DateTime _lastUserActivity = DateTime.MinValue;
 
     public TimelineViewModel(Database db, WriteQueue queue, ExportService exporter)
     {
@@ -99,13 +103,7 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         _trailingRefresh = _dispatcher.CreateTimer();
         _trailingRefresh.Interval = TimeSpan.FromSeconds(5);
         _trailingRefresh.IsRepeating = false;
-        _trailingRefresh.Tick += (_, _) =>
-        {
-            _trailingRefresh.Stop();
-            if (!CanAutoRefresh()) return;
-            _lastAutoRefresh = DateTime.Now;
-            Refresh();
-        };
+        _trailingRefresh.Tick += (_, _) => OnTrailingTick();
 
         _queue.EventsCommitted += OnEventsCommitted;
     }
@@ -157,7 +155,7 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         SelectedGroup.Group, SearchText,
         DateFrom?.DateTime, DateTo?.DateTime, offset, PageSize);
 
-    /// <summary>重新加载第一页。</summary>
+    /// <summary>重新加载第一页。结果集无变化时跳过重建（避免无谓的 UI 抖动）。</summary>
     [RelayCommand]
     public void Refresh()
     {
@@ -166,9 +164,23 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
             var filter = CurrentFilter(0);
             var total = _db.CountEvents(filter);
             var rows = _db.QueryEvents(filter);
+            var newestId = rows.Count > 0 ? rows[0].Id : 0;
 
-            Items.Clear();
-            foreach (var e in rows) Items.Add(new ActivityEventItem(e));
+            // 变更签名（总条数 + 最新事件 Id）与上次相同 → 数据没变，跳过集合重建。
+            // 注意不能用 Items.Count 对比 total —— 用户点过"加载更多"后两者恒不等。
+            if (_loadedCount > 0 && total == _lastTotal && newestId == _lastNewestId)
+            {
+                StatusText = $"共 {total} 条，已显示 {_loadedCount} 条" + (HasMore ? "（可加载更多）" : "");
+                return;
+            }
+            _lastTotal = total;
+            _lastNewestId = newestId;
+
+            // 批量替换：整体只发一次 Reset 通知（Clear+逐条 Add 会触发几百次布局）
+            var items = new List<ActivityEventItem>(rows.Count);
+            foreach (var e in rows) items.Add(new ActivityEventItem(e));
+            Items.ReplaceRange(items);
+
             _loadedCount = rows.Count;
             HasMore = _loadedCount < total;
             StatusText = $"共 {total} 条，已显示 {_loadedCount} 条" + (HasMore ? "（可加载更多）" : "");
@@ -180,14 +192,20 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>加载下一页（追加）。</summary>
+    /// <summary>上次查询的变更签名（总条数 + 最新事件 Id），用于跳过无变化的刷新。</summary>
+    private long _lastTotal = -1;
+    private long _lastNewestId = -1;
+
+    /// <summary>加载下一页（批量追加）。</summary>
     [RelayCommand]
     public void LoadMore()
     {
         try
         {
             var rows = _db.QueryEvents(CurrentFilter(_loadedCount));
-            foreach (var e in rows) Items.Add(new ActivityEventItem(e));
+            var items = new List<ActivityEventItem>(rows.Count);
+            foreach (var e in rows) items.Add(new ActivityEventItem(e));
+            Items.AppendRange(items);
             _loadedCount += rows.Count;
             StatusText = $"已显示 {_loadedCount} 条（继续滚动可加载更多）";
             HasMore = rows.Count == PageSize;
@@ -195,7 +213,7 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         catch (Exception ex) { DiagnosticsLog.Error("加载更多失败", ex); }
     }
 
-    // ---------- 自动刷新（前沿+尾沿节流，逻辑同 WPF 版） ----------
+    // ---------- 自动刷新（前沿+尾沿节流 + 用户交互避让） ----------
 
     private void OnEventsCommitted(object? sender, IReadOnlyList<ActivityEvent> events)
     {
@@ -203,16 +221,25 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         catch (Exception ex) { DiagnosticsLog.Error("自动刷新调度失败", ex); }
     }
 
-    /// <summary>是否允许自动刷新（须在 UI 线程调用）。</summary>
+    /// <summary>
+    /// 是否允许自动刷新（须在 UI 线程调用）。
+    /// 用户 3 秒内滚动过列表时不刷新——重建集合会打断滚动（卡顿感的来源之一），
+    /// 尾沿定时器会在滚动停止后自动补刷（见 <see cref="OnTrailingTick"/>）。
+    /// </summary>
     private bool CanAutoRefresh()
-        => App.MainWindowInstance != null && string.IsNullOrEmpty(SearchText);
+        => App.MainWindowInstance != null
+           && string.IsNullOrEmpty(SearchText)
+           && DateTime.Now - _lastUserActivity > TimeSpan.FromSeconds(3);
+
+    /// <summary>页面注入的用户交互通知（滚轮/按下）：自动刷新避让 3 秒。</summary>
+    public void NotifyUserActive() => _lastUserActivity = DateTime.Now;
 
     /// <summary>前沿+尾沿节流（5 秒窗口）：窗口期内到达的事件合并为一次延后刷新，绝不丢。</summary>
     private void ArmAutoRefresh()
     {
-        if (!CanAutoRefresh()) return;
+        if (string.IsNullOrEmpty(SearchText) is false) return; // 搜索中不刷
         var since = DateTime.Now - _lastAutoRefresh;
-        if (since >= TimeSpan.FromSeconds(5))
+        if (since >= TimeSpan.FromSeconds(5) && CanAutoRefresh())
         {
             _lastAutoRefresh = DateTime.Now;
             _trailingRefresh?.Stop();
@@ -223,10 +250,30 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
             _trailingRefresh?.Stop();
             if (_trailingRefresh != null)
             {
-                _trailingRefresh.Interval = TimeSpan.FromSeconds(5) - since;
+                _trailingRefresh.Interval = TimeSpan.FromSeconds(5) - since > TimeSpan.Zero
+                    ? TimeSpan.FromSeconds(5) - since
+                    : TimeSpan.FromSeconds(1);
                 _trailingRefresh.Start();
             }
         }
+    }
+
+    /// <summary>尾沿定时器触发：条件满足则刷新；用户还在滚动则 1 秒后重试（补刷，不丢事件）。</summary>
+    private void OnTrailingTick()
+    {
+        _trailingRefresh?.Stop();
+        if (!CanAutoRefresh())
+        {
+            // 用户正在滚动 → 1 秒后再试；搜索中则放弃（下次事件到达会重新布防）
+            if (string.IsNullOrEmpty(SearchText) && _trailingRefresh != null)
+            {
+                _trailingRefresh.Interval = TimeSpan.FromSeconds(1);
+                _trailingRefresh.Start();
+            }
+            return;
+        }
+        _lastAutoRefresh = DateTime.Now;
+        Refresh();
     }
 
     /// <summary>窗口重新显示/被激活时的补刷（2 秒自身节流）。</summary>

@@ -93,12 +93,14 @@
                                                 />
                     <controls:DataGridTemplateColumn Header="类型" Width="84" MinWidth="70">
                         <controls:DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate x:DataType="vm:ActivityEventItem">
-                                <!-- 小圆角 tag（非胶囊）+ 同色系细描边 -->
-                                <Border Background="{x:Bind TypeBadgeBrush}" CornerRadius="4"
-                                        BorderBrush="{x:Bind TypeBrush}" BorderThickness="1"
+                            <DataTemplate>
+                                <!-- 小圆角 tag + 同色系细描边。
+                                     注意：DataGrid 行容器是回收复用的，模板内必须用 {Binding}
+                                     而非 x:Bind（OneTime 不随回收更新 → 脏数据 + 回收退化卡顿） -->
+                                <Border Background="{Binding TypeBadgeBrush}" CornerRadius="4"
+                                        BorderBrush="{Binding TypeBrush}" BorderThickness="1"
                                         Padding="7,2" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind TypeDisplay}" Foreground="{x:Bind TypeBrush}"
+                                    <TextBlock Text="{Binding TypeDisplay}" Foreground="{Binding TypeBrush}"
                                                FontSize="11.5" FontWeight="SemiBold"/>
                                 </Border>
                             </DataTemplate>
@@ -107,12 +109,12 @@
                     <controls:DataGridTextColumn Header="名称" Binding="{Binding Name}" Width="*" MinWidth="120"/>
                     <controls:DataGridTemplateColumn Header="大小 / 版本" Width="180" MinWidth="100">
                         <controls:DataGridTemplateColumn.CellTemplate>
-                            <DataTemplate x:DataType="vm:ActivityEventItem">
+                            <DataTemplate>
                                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind Detail}" Foreground="{ThemeResource TextPrimaryBrush}"/>
-                                    <TextBlock Text="{x:Bind LocalStatusDisplay}" FontSize="11" FontWeight="SemiBold"
-                                               Foreground="{x:Bind LocalStatusBrush}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="{x:Bind LinkedHint}" FontSize="11" FontWeight="SemiBold"
+                                    <TextBlock Text="{Binding Detail}" Foreground="{ThemeResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding LocalStatusDisplay}" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{Binding LocalStatusBrush}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding LinkedHint}" FontSize="11" FontWeight="SemiBold"
                                                Foreground="{ThemeResource AccentBrush}" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </DataTemplate>
