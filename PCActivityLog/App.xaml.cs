@@ -101,7 +101,11 @@ public partial class App : Application
 
         // 4. 主窗口（含托盘）
         MainWindowInstance = new MainWindow(_notifier);
+        // Activate 是必需的（WinUI 窗口首次激活后才完成初始化，托盘/页面才可用）
         MainWindowInstance.Activate();
+        // 自启动（--minimized）：激活完成后立即隐藏到托盘。
+        // 注意必须在 Activate 之后隐藏——若在构造函数里隐藏会被这里的 Activate 重新显示。
+        if (StartMinimized) MainWindowInstance.HideToTray();
 
         DiagnosticsLog.Info("程序启动完成");
     }

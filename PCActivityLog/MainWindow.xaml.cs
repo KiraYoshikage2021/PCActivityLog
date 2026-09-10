@@ -326,7 +326,8 @@ public sealed partial class MainWindow : Window
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int X; public int Y; }
 
-    private void HideToTray()
+    /// <summary>隐藏窗口到托盘（public：启动流程在 Activate 后需要调用一次）。</summary>
+    public void HideToTray()
     {
         try
         {
