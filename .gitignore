@@ -16,3 +16,4 @@ publish*/
 Thumbs.db
 .DS_Store
 .zcode/
+tests/icon_frames/

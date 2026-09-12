@@ -155,6 +155,10 @@ public class RegistryUninstallWatcher : IDisposable
                 using var k = root.OpenSubKey(name);
                 if (k is null) continue;
 
+                // 跳过自己：程序自我登记的卸载键（AppRegistrationService）不应被记成"安装"
+                if (string.Equals(name, AppRegistrationService.SelfKeyName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 // 隐藏系统组件不记录（Windows 自己的运行库等，纯噪音）
                 if (k.GetValue("SystemComponent") is int sc && sc == 1) continue;
 

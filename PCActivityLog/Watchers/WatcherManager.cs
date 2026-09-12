@@ -56,7 +56,7 @@ public class WatcherManager : IEventSink, IDisposable
         {
             _modules.Clear();
             _modules.Add(new DownloadWatcher(_settings, this));
-            _modules.Add(new AppWatcher(_settings, this));
+            _modules.Add(new AppWatcher(_settings, _db, this));
             _modules.Add(new SystemEventWatcher(this, _db));
             // 浏览器历史记录功能已移除（用户要求不再采集，历史数据已清理）
             _modules.Add(new ImFileWatcher(_settings, this));

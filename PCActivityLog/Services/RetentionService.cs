@@ -46,8 +46,7 @@ public class RetentionService : IDisposable
             var now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             var removed = 0;
 
-            // 其他事件的保留清理（独立判断，不能嵌套——此前缺少大括号导致
-            // 只有 BrowserRetentionDays>0 时才会执行，清理静默失效）
+            // 保留清理（独立判断，不能嵌套——此前缺少大括号导致清理静默失效）
             if (_settings.OtherRetentionDays > 0)
             {
                 foreach (var type in new[] { "download", "file_delete", "file_rename", "im_file",

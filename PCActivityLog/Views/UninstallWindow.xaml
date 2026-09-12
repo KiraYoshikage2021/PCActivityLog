@@ -1,0 +1,36 @@
+<Window
+    x:Class="PCActivityLog.Views.UninstallWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="卸载 电脑日志记录">
+
+    <Grid Padding="28,24" RowSpacing="14" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="卸载 电脑日志记录" FontSize="20" FontWeight="SemiBold"/>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" LineHeight="22"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+            将移除程序在系统中的登记信息（「已安装应用」列表条目）并关闭开机自启动。<LineBreak/>
+            程序文件不会被自动删除，完成后请在打开的文件夹中手动删除。
+        </TextBlock>
+
+        <CheckBox x:Name="DeleteDataCheck" Grid.Row="2"
+                  Content="同时删除应用数据（日志数据库与设置，位于 %LOCALAPPDATA%\PCActivityLog）"/>
+
+        <TextBlock x:Name="ResultText" Grid.Row="3" TextWrapping="Wrap" LineHeight="22"
+                   Visibility="Collapsed" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+            <Button x:Name="CancelButton" Content="取消" Click="Cancel_Click"/>
+            <Button x:Name="UninstallButton" Content="卸载" Style="{StaticResource AccentButtonStyle}"
+                    Click="Uninstall_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

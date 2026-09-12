@@ -1,7 +1,4 @@
-using H.NotifyIcon;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using PCActivityLog.Services;
 using PCActivityLog.Views;
 
@@ -10,14 +7,13 @@ using System.Runtime.InteropServices;
 namespace PCActivityLog;
 
 /// <summary>
-/// 主窗口 —— 左侧 NavigationView 导航 + Mica 背景 + 托盘图标。
-/// 托盘用纯代码创建（H.NotifyIcon 在 XAML 中会破坏同文件其他命名元素的字段生成，
-/// 这是该库与 WinUI3 XAML 编译器混用时的已知限制）。
+/// 主窗口 —— 时间线铺满窗口（无导航栏），设置从时间线工具栏齿轮进入。
+/// 托盘为 Windows 原生 Shell_NotifyIcon（TrayIconService），托盘菜单为 Win32 原生实现。
 /// </summary>
 public sealed partial class MainWindow : Window
 {
     private readonly NotificationService _notifier;
-    private TaskbarIcon? _tray;
+    private TrayIconService? _tray;
 
     public MainWindow(NotificationService notifier)
     {
@@ -31,8 +27,13 @@ public sealed partial class MainWindow : Window
 
         SetupTray();
 
-        // 初始页由 XAML 中 NavigationViewItem 的 IsSelected="True" 触发 SelectionChanged 加载；
-        // 这里不再重复 Navigate，避免与 SelectionChanged 竞争导致内容与高亮不一致。
+        // 首次加载后直达时间线（在 Loaded 里导航，与旧导航栏的加载时机一致，
+        // 避免 Frame 未完成布局时初始化页面）
+        ContentFrame.Loaded += (_, _) =>
+        {
+            if (ContentFrame.Content == null)
+                ContentFrame.Navigate(typeof(TimelinePage));
+        };
 
         // 关闭按钮：按设置决定"最小化到托盘"还是"退出程序"
         AppWindow.Closing += OnAppWindowClosing;
@@ -80,7 +81,7 @@ public sealed partial class MainWindow : Window
     // ---------- 图标 ----------
 
     /// <summary>定位 app.ico：优先 exe 同目录（发布版），回退到源码 Assets 目录（开发时）。</summary>
-    private static string? ResolveIconPath()
+    public static string? ResolveIconPath()
     {
         var exeDir = Path.GetDirectoryName(Environment.ProcessPath);
         if (exeDir != null)
@@ -116,78 +117,21 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    /// <summary>取托盘图标尺寸（跟随 DPI：100%=16px，150%=24px）。不引 WinForms，直接算。</summary>
-    private static System.Drawing.Size GetTrayIconSize()
-    {
-        try
-        {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindowInstance!);
-            uint dpi = GetDpiForWindow(hwnd);
-            var px = dpi == 0 ? 16 : (int)Math.Round(16.0 * dpi / 96.0);
-            return new System.Drawing.Size(px, px);
-        }
-        catch { return new System.Drawing.Size(16, 16); }
-    }
-
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    // ---------- 托盘（纯代码） ----------
+    // ---------- 托盘 ----------
 
     private void SetupTray()
     {
         try
         {
-            _tray = new TaskbarIcon
-            {
-                ToolTipText = "电脑日志记录 — 双击打开",
-                NoLeftClickDelay = true,
-            };
-
-            // 图标：优先用 app.ico 精确取托盘尺寸帧（16/24px），保证小图标清晰；
-            // ExtractAssociatedIcon 只取单一尺寸且不按 DPI 选帧，小图标会发虚。
-            try
-            {
-                var icoPath = ResolveIconPath();
-                if (icoPath != null && File.Exists(icoPath))
-                {
-                    // 按系统托盘图标尺寸取帧（100% DPI=16px，150%=24px）
-                    var size = GetTrayIconSize();
-                    _tray.Icon = new System.Drawing.Icon(icoPath, size);
-                }
-                else
-                {
-                    var exePath = Environment.ProcessPath;
-                    if (exePath != null)
-                        _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
-                }
-            }
-            catch (Exception ex)
-            {
-                DiagnosticsLog.Warn("托盘图标加载失败，尝试 exe 关联图标: " + ex.Message);
-                try
-                {
-                    var exePath = Environment.ProcessPath;
-                    if (exePath != null) _tray.Icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
-                }
-                catch (Exception ex2) { DiagnosticsLog.Error("托盘图标回退也失败", ex2); }
-            }
-
-            // 托盘菜单统一由 Win32 原生菜单实现（见 ShowTrayMenu）。
-            // 关键：MenuActivation 必须设为 None，否则 H.NotifyIcon 在收到右键消息时
-            // 会自己尝试 ShowContextMenu（窗口无 XamlRoot → 抛 ArgumentException，
-            // 且与 Win32 菜单冲突，出现"两套菜单/菜单显示异常"）。
-            _tray.MenuActivation = H.NotifyIcon.Core.PopupActivationMode.None;
-            _tray.LeftClickCommand = new RelayCommand(ShowFromTray);
-            _tray.RightClickCommand = new RelayCommand(ShowTrayMenu);
-            _tray.ForceCreate();
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            _tray = new TrayIconService("电脑日志记录 — 双击打开", ShowFromTray, ShowTrayMenu);
+            // 图标：app.ico 按托盘尺寸取帧；加载失败时服务内部回退 exe 内嵌图标
+            if (!_tray.TryAdd(ResolveIconPath(), hwnd))
+                DiagnosticsLog.Warn("托盘图标添加失败（本会话无托盘图标）");
 
             // 通知服务接气泡
             _notifier.ShowBalloon = (title, text) =>
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    try { _tray?.ShowNotification(title, text); } catch { }
-                });
+                DispatcherQueue.TryEnqueue(() => _tray?.ShowBalloon(title, text));
         }
         catch (Exception ex) { DiagnosticsLog.Error("托盘初始化失败", ex); }
     }
@@ -214,17 +158,9 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 右键托盘图标时弹出菜单。
-    /// 用 Win32 取当前光标位置后调用 ShowContextMenu —— 这是不依赖
-    /// MenuActivation 自动机制的可靠路径（窗口隐藏到托盘时同样有效）。
-    /// </summary>
-    /// <summary>
     /// 右键托盘图标时弹出菜单（Win32 原生实现）。
-    ///
-    /// 为什么不用 H.NotifyIcon 的 ContextFlyout/ShowContextMenu：
-    /// 实测 RightClickCommand 能正常触发，但 ShowContextMenu 在窗口隐藏到托盘时
-    /// 不显示菜单（PopupMenu 模式的原生菜单依赖当前窗口状态）。
-    /// 改用 CreatePopupMenu + TrackPopupMenuEx 直接创建 Win32 菜单，完全可控。
+    /// 用 CreatePopupMenu + TrackPopupMenuEx 直接创建 Win32 菜单，完全可控：
+    /// 窗口隐藏到托盘时同样有效，不依赖任何托盘库的菜单机制。
     /// </summary>
     private void ShowTrayMenu()
     {
@@ -278,9 +214,9 @@ public sealed partial class MainWindow : Window
                         ShowFromTray();
                         break;
                     case ID_SETTINGS:
-                        // 显示主窗口并切到设置页
                         ShowFromTray();
-                        Nav.SelectedItem = Nav.MenuItems[2];
+                        if (ContentFrame.CurrentSourcePageType != typeof(SettingsPage))
+                            ContentFrame.Navigate(typeof(SettingsPage));
                         break;
                     case ID_AUTOSTART:
                         AutoStartService.SetEnabled(!autoStart);
@@ -348,21 +284,7 @@ public sealed partial class MainWindow : Window
         catch { }
     }
 
-    // ---------- 导航 ----------
-
-    private void Nav_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
-    {
-        if (args.SelectedItem is not NavigationViewItem item) return;
-        Type? page = (item.Tag as string) switch
-        {
-            "timeline" => typeof(TimelinePage),
-            "stats" => typeof(StatsPage),
-            "settings" => typeof(SettingsPage),
-            _ => null,
-        };
-        if (page != null && ContentFrame.CurrentSourcePageType != page)
-            ContentFrame.Navigate(page);
-    }
+    // ---------- 主题 ----------
 
     private void OnThemeChanged()
         => DispatcherQueue.TryEnqueue(() =>

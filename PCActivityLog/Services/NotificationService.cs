@@ -3,9 +3,8 @@ using PCActivityLog.Models;
 namespace PCActivityLog.Services;
 
 /// <summary>
-/// 气泡通知服务（WinUI 版）—— 由托盘图标展示新事件气泡。
-/// 阶段 3 接入 H.NotifyIcon 后完善；当前提供与 WPF 版一致的接口签名，
-/// 保证 WatcherManager 等纯逻辑层可直接编译。
+/// 气泡通知服务 —— 由托盘气泡展示新事件（托盘为原生 Shell_NotifyIcon 实现）。
+/// 提供与线程模型无关的接口签名，保证 WatcherManager 等纯逻辑层可直接编译。
 /// </summary>
 public class NotificationService : IDisposable
 {
@@ -42,8 +41,7 @@ public class NotificationService : IDisposable
         EventType.Download => _settings.NotifyDownloads,
         EventType.Install or EventType.Update or EventType.Uninstall => _settings.NotifyApp,
         EventType.Boot or EventType.Shutdown => _settings.NotifySystem,
-        EventType.Browse => _settings.NotifyBrowse,
-        _ => false,
+        _ => false, // 其余类型（含已移除采集的 Browse）不弹气泡
     };
 
     private static string Trim(string s, int max) => s.Length <= max ? s : s[..max] + "…";

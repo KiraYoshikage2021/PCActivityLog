@@ -22,9 +22,6 @@ public class AppSettings
     /// <summary>系统监视模块总开关（开机/关机记录）。</summary>
     public bool ModuleSystemEnabled { get; set; } = true;
 
-    /// <summary>浏览器记录模块（已移除该功能，保留字段仅为兼容旧配置文件）。</summary>
-    public bool ModuleBrowserEnabled { get; set; } = false;
-
     // ---------- 微信/QQ 文件监视子开关与参数 ----------
 
     /// <summary>微信/QQ 文件监视模块总开关。</summary>
@@ -38,9 +35,6 @@ public class AppSettings
 
     /// <summary>额外自定义的 IM 文件目录（自动识别不到时手工补充，递归监视）。</summary>
     public List<string> ImFolders { get; set; } = new();
-
-    /// <summary>时间线各列宽度（键 = 列标题文本，值 = 像素），用户拖拽后记忆，重启保持。</summary>
-    public Dictionary<string, double> ColumnWidths { get; set; } = new();
 
     // ---------- 文件监视子开关与参数 ----------
 
@@ -68,19 +62,9 @@ public class AppSettings
     /// <summary>注册表轮询间隔（秒）。</summary>
     public int RegistryPollSeconds { get; set; } = 30;
 
-    // ---------- 浏览器记录子开关与参数 ----------
+    // ---------- 数据保留 ----------
 
-    public bool BrowserChrome { get; set; } = true;
-    public bool BrowserEdge { get; set; } = true;
-    public bool BrowserFirefox { get; set; } = true;
-
-    /// <summary>浏览器历史轮询间隔（分钟）。</summary>
-    public int BrowserPollMinutes { get; set; } = 2;
-
-    /// <summary>浏览记录保留天数（0 = 永久）。</summary>
-    public int BrowserRetentionDays { get; set; } = 90;
-
-    /// <summary>除浏览外其他事件的保留天数（0 = 永久）。</summary>
+    /// <summary>事件保留天数（0 = 永久），到期由 RetentionService 定期清理。</summary>
     public int OtherRetentionDays { get; set; } = 0;
 
     // ---------- 通知 ----------
@@ -97,9 +81,6 @@ public class AppSettings
     /// <summary>系统事件（开关机）是否弹气泡。</summary>
     public bool NotifySystem { get; set; } = false;
 
-    /// <summary>浏览事件是否弹气泡（默认关，浏览太频繁会刷屏）。</summary>
-    public bool NotifyBrowse { get; set; } = false;
-
     // ---------- 行为 ----------
 
     /// <summary>主题模式：auto = 跟随系统（默认）/ light / dark。</summary>
@@ -110,6 +91,9 @@ public class AppSettings
 
     /// <summary>开机自启动。</summary>
     public bool StartWithWindows { get; set; } = false;
+
+    /// <summary>在系统卸载注册表中登记程序信息（「已安装应用」/卸载工具显示正确名称与图标）。关闭后下次启动自动清除登记。</summary>
+    public bool RegisterInSystem { get; set; } = true;
 
     // ---------- 持久化 ----------
 
@@ -124,14 +108,14 @@ public class AppSettings
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    /// <summary>从磁盘加载配置；文件不存在或损坏时返回带默认值的新实例（绝不抛异常）。</summary>
-    public static AppSettings Load()
+    /// <summary>从指定路径加载（测试注入临时路径用）。文件不存在或损坏时返回带默认值的新实例（绝不抛异常）。</summary>
+    public static AppSettings LoadFrom(string path)
     {
         try
         {
-            if (File.Exists(SettingsFile))
+            if (File.Exists(path))
             {
-                var s = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(SettingsFile), JsonOpts);
+                var s = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOpts);
                 if (s != null)
                 {
                     s.FixDefaults();
@@ -148,27 +132,31 @@ public class AppSettings
         return fresh;
     }
 
+    /// <summary>从磁盘加载配置；文件不存在或损坏时返回带默认值的新实例（绝不抛异常）。</summary>
+    public static AppSettings Load() => LoadFrom(SettingsFile);
+
     /// <summary>保存用的锁（UI 线程与托盘线程都可能调用 Save）。</summary>
     private static readonly object SaveLock = new();
 
     /// <summary>
-    /// 保存到磁盘（原子写：先写临时文件再替换，避免写一半崩溃导致配置损坏）。
-    /// 损坏的配置会被 Load 回退到全新默认值，等于丢失用户全部设置，所以必须原子写。
+    /// 保存到指定路径（测试注入临时路径用）。原子写：先写临时文件再替换，
+    /// 避免写一半崩溃导致配置损坏（损坏的配置会被 Load 回退到全新默认值，
+    /// 等于丢失用户全部设置，所以必须原子写）。
     /// </summary>
-    public void Save()
+    public void SaveTo(string path)
     {
         try
         {
-            var dir = Path.GetDirectoryName(SettingsFile)!;
+            var dir = Path.GetDirectoryName(path)!;
             Directory.CreateDirectory(dir);
             var json = JsonSerializer.Serialize(this, JsonOpts);
 
             lock (SaveLock)
             {
-                var tmp = SettingsFile + ".tmp";
+                var tmp = path + ".tmp";
                 File.WriteAllText(tmp, json, System.Text.Encoding.UTF8);
                 // File.Move(overwrite:true) 在同一卷上是原子替换
-                File.Move(tmp, SettingsFile, overwrite: true);
+                File.Move(tmp, path, overwrite: true);
             }
         }
         catch (Exception ex)
@@ -176,6 +164,8 @@ public class AppSettings
             DiagnosticsLog.Warn("保存配置失败: " + ex.Message);
         }
     }
+
+    public void Save() => SaveTo(SettingsFile);
 
     /// <summary>校正不合法的值（如轮询间隔过小、监视文件夹为空），保证程序行为始终可预期。</summary>
     private void FixDefaults()
@@ -190,10 +180,7 @@ public class AppSettings
 
         SettleSeconds = Math.Clamp(SettleSeconds, 2, 60);
         RegistryPollSeconds = Math.Clamp(RegistryPollSeconds, 10, 3600);
-        BrowserPollMinutes = Math.Clamp(BrowserPollMinutes, 1, 120);
-        BrowserRetentionDays = Math.Max(0, BrowserRetentionDays);
         OtherRetentionDays = Math.Max(0, OtherRetentionDays);
-        // 注：ColumnWidths 字段保留仅为向前兼容旧配置文件（列宽拖拽功能已随 DataGrid 移除）。
     }
 }
 

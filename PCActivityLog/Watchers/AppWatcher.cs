@@ -1,3 +1,4 @@
+using PCActivityLog.Data;
 using PCActivityLog.Services;
 
 namespace PCActivityLog.Watchers;
@@ -16,9 +17,9 @@ public class AppWatcher : IWatcherModule
     private readonly RegistryUninstallWatcher _registry;
     private readonly RecentNameFilter _dedupe = new();
 
-    public AppWatcher(AppSettings settings, IEventSink sink)
+    public AppWatcher(AppSettings settings, Database? db, IEventSink sink)
     {
-        _msi = new MsiEventWatcher(settings, sink, _dedupe);
+        _msi = new MsiEventWatcher(settings, sink, _dedupe, db);
         _registry = new RegistryUninstallWatcher(settings, sink, _dedupe);
     }
 

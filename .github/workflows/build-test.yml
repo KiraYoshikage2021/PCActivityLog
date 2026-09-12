@@ -1,0 +1,25 @@
+name: build-test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          # global.json 锁定 8.0.4xx band；显式安装保证 runner 上可用
+          dotnet-version: 8.0.424
+
+      - name: Build (Release)
+        run: dotnet build PCActivityLog/PCActivityLog.csproj -c Release
+
+      - name: Test
+        run: dotnet test PCActivityLog.Tests/PCActivityLog.Tests.csproj -c Release

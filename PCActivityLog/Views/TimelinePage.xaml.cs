@@ -100,6 +100,12 @@ public sealed partial class TimelinePage : Page
     private async void ExportCsv_Click(object sender, RoutedEventArgs e) => await Vm.ExportCsvAsync();
     private async void ExportJson_Click(object sender, RoutedEventArgs e) => await Vm.ExportJsonAsync();
 
+    // ---------- 设置入口 ----------
+
+    /// <summary>工具栏齿轮按钮：进入设置页（本程序已无导航栏，设置由此进入）。</summary>
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(SettingsPage));
+
     // ---------- 手动添加记录 ----------
 
     private async void AddEvent_Click(object sender, RoutedEventArgs e)

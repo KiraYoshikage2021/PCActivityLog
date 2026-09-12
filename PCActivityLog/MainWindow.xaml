@@ -4,27 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="电脑日志记录">
 
+    <!-- 无导航栏：时间线铺满窗口；设置从时间线工具栏右侧齿轮按钮进入 -->
     <Grid x:Name="RootGrid">
-        <NavigationView x:Name="Nav"
-                        IsBackButtonVisible="Collapsed"
-                        IsSettingsVisible="False"
-                        PaneDisplayMode="Left"
-                        OpenPaneLength="200"
-                        SelectionChanged="Nav_SelectionChanged">
-            <NavigationView.MenuItems>
-                <NavigationViewItem Content="时间线" Tag="timeline" IsSelected="True">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="List"/></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="统计" Tag="stats">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="FourBars"/></NavigationViewItem.Icon>
-                </NavigationViewItem>
-                <NavigationViewItem Content="设置" Tag="settings">
-                    <NavigationViewItem.Icon><SymbolIcon Symbol="Setting"/></NavigationViewItem.Icon>
-                </NavigationViewItem>
-            </NavigationView.MenuItems>
-
-            <!-- CacheSize=3：缓存页面实例，切换时不重建、不重新查库（解决侧边栏切换卡顿） -->
-            <Frame x:Name="ContentFrame" CacheSize="3" />
-        </NavigationView>
+        <Frame x:Name="ContentFrame" CacheSize="2" />
     </Grid>
 </Window>

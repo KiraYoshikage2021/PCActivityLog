@@ -1,6 +1,6 @@
 # 电脑日志记录（PCActivityLog）
 
-一个 Windows 常驻托盘小工具，自动记录这台电脑上发生的事：下载了哪些文件、装了/更新了/卸载了哪些软件、浏览器访问过哪些网页、什么时候开的机关的机。所有数据只存在本机（`%LOCALAPPDATA%\PCActivityLog\`），不联网、不上传。
+一个 Windows 常驻托盘小工具，自动记录这台电脑上发生的事：下载了哪些文件、装了/更新了/卸载了哪些软件、微信/QQ 收到过哪些文件、什么时候开的机关的机。所有数据只存在本机（`%LOCALAPPDATA%\PCActivityLog\`），不联网、不上传。
 
 ## 功能一览
 
@@ -9,9 +9,8 @@
 | 📥 下载 | 监视"下载"等文件夹（可配置多个），文件写入完成才算一次下载；自动读取 Windows 的 Mark of the Web 标记，记录**来源网址** |
 | 🗑 删除 / ✏️ 重命名 | 监视文件夹内的文件删除和重命名事件 |
 | 💬 微信/QQ 文件 | 自动识别微信（xwechat_files / WeChat Files）与 QQ（Tencent Files）的文件存储目录，记录收到的每个文件，并标注**✔ 已保存 / ⚠ 已清理**（文件被 IM 存储管理清理后状态自动更新）；支持自定义目录兜底 |
-| 📦 安装 / ⬆️ 更新 / 🗑 卸载 | 双通道检测：MSI 安装事件日志 + 注册表卸载键对比（覆盖 EXE 安装器和绿色软件），带防误报复核 |
+| 📦 安装 / ⬆️ 更新 / 🗑 卸载 | 双通道检测：MSI 安装事件日志（带版本号）+ 注册表卸载键对比（覆盖 EXE 安装器和绿色软件），带防误报复核；同产品同版本的重复安装（修复/重跑，典型如 VS 内嵌的 Workloads MSI）自动跳过 |
 | 💻 开机 / 关机 | 从系统事件日志读取，程序没运行期间的开关机也会在下次启动时补录 |
-| 🌐 浏览记录 | 定时增量读取 Chrome / Edge / Firefox 历史库（复制后读取，不干扰浏览器；无痕模式不记录）；**默认不在时间线展示**，需要时切"浏览"筛选或在搜索框搜索（会自动扩到含浏览） |
 | ✍️ 手动记录 | 界面上随时补录自定义事件 |
 | 🔗 下载↔安装关联 | 安装事件自动回溯匹配最近的下载，显示"由哪个安装包装的" |
 
@@ -19,9 +18,8 @@
 
 ## 界面
 
-- **时间线页**：按类型筛选、关键词搜索（含备注）、日期范围；类型列为彩色胶囊徽章；双击打开文件位置或跳转关联事件；右键编辑备注；导出 CSV / JSON
-- **统计页**：本月下载量/总量、安装数、浏览数等汇总卡片 + 最近 12 个月分类柱状图
-- **托盘图标**：双击打开主窗口；右键菜单可快速设置、开机自启、退出
+- **时间线（主窗口）**：窗口直接显示时间线（无导航栏），按类型筛选、关键词搜索（含备注）、日期范围；类型列为彩色胶囊徽章；双击打开文件位置或跳转关联事件；右键菜单（打开文件位置 / 跳到来源安装包 / 复制名称）；导出 CSV / JSON；右上角齿轮进入设置
+- **托盘图标**：双击打开主窗口；右键菜单可快速打开设置、开机自启、退出
 - **自动跟随 Windows 浅色/深色主题**：和 Windows 11 原生应用一样，系统切换深色模式时本软件实时跟随（包括系统标题栏一起变深）；也可在设置里强制浅色/深色
 
 ## 如何使用
@@ -44,12 +42,29 @@ dotnet publish -c Release -r win-x64 -p:WindowsAppSDKSelfContained=true -o bin/R
 
 ### 方式二：从源码运行
 
-用 Visual Studio 2022 打开 `PCActivityLog\PCActivityLog.csproj` 按 F5，
-或在命令行 `dotnet run --project PCActivityLog`。
+用 Visual Studio 2022 打开根目录的 `PCActivityLog.sln`（或直接打开 `PCActivityLog\PCActivityLog.csproj`）按 F5，
+或在命令行 `dotnet run --project PCActivityLog`。运行单元测试：`dotnet test PCActivityLog.Tests`。
 
 ### 开机自启动
 
 托盘右键菜单勾选"开机自启动"即可（写当前用户的注册表 Run 键，不需要管理员权限）。
+
+### 系统识别与卸载
+
+本程序是免安装的目录形式发布，默认会把自身信息登记进当前用户的卸载注册表
+（`HKCU\...\Uninstall\PCActivityLog`），这样 Windows「设置 → 应用」和
+BCUninstaller 等卸载工具能正确显示"电脑日志记录"的名称、版本和图标，
+而不是把文件夹误识别成别的程序。登记条目同时提供卸载入口：
+
+- 卸载时程序会清除登记信息、关闭开机自启动，然后打开资源管理器定位到程序文件夹，**程序文件由你手动删除**；
+- 可选勾选"同时删除应用数据"（日志数据库与设置）；
+- 如果程序正在后台运行，会先请求它退出；
+- 不想登记的话，在设置 → 通用行为里关闭"在系统中注册程序信息"，下次启动自动清除登记。
+
+### 更换图标后缩略图没变？
+
+Explorer 会缓存 exe 的旧图标。替换 `Assets\app.ico` 重新发布后，运行一次
+`ie4uinit.exe -show`（或重启 Explorer）即可刷新缩略图缓存。
 
 ## 数据都存在哪
 
@@ -61,61 +76,63 @@ dotnet publish -c Release -r win-x64 -p:WindowsAppSDKSelfContained=true -o bin/R
 
 想"彻底重置"就退出程序后删掉这个文件夹。
 
-数据保留策略：浏览记录默认保留 90 天，其余事件默认永久，都可以在设置里改。
+数据保留策略：事件默认永久保留。如需自动清理过期数据，可在配置文件 settings.json 中把 `OtherRetentionDays` 设为保留天数（0 = 永久，修改后重启程序生效）。
+
+数据库内的时间戳以 **UTC** 存储（界面显示为本地时间；v2.6.0 起生效，旧数据库在启动时自动一次性迁移）。
 
 ## 项目结构地图（想改代码看这里）
 
 ```
 PCActivityLog/                    # WinUI 3 + .NET 8 工程
-├── App.xaml(.cs)                 # 入口：单实例、服务组装、全局异常兜底、优雅退出
-├── MainWindow.xaml(.cs)          # 主窗口：左侧 NavigationView 导航 + Mica 背景 + 托盘
+├── App.xaml(.cs)                 # 入口：单实例、服务组装、自我登记、卸载流程、优雅退出
+├── MainWindow.xaml(.cs)          # 主窗口：时间线铺满 + Mica 背景 + 原生托盘
 ├── Themes/AppColors.xaml         # 浅/深双色板（ThemeDictionaries，随 RequestedTheme 自动切换）
 ├── Models/                       # 数据模型
 │   ├── ActivityEvent.cs          #   一条事件（对应数据库一行）
 │   └── EventType.cs              #   事件类型枚举 + 分类 + 中文名
 ├── Data/                         # 存储层
 │   ├── Database.cs               #   SQLite 建表 / 查询 / 筛选搜索
-│   ├── WriteQueue.cs             #   单写队列（所有入库走这里，串行化 + 批量事务）
-│   └── StatsRepository.cs        #   统计聚合（卡片 + 按月图表）
+│   └── WriteQueue.cs             #   单写队列（所有入库走这里，串行化 + 批量事务）
 ├── Watchers/                     # 采集层（每个文件一个监视模块，纯逻辑零 UI 依赖）
 │   ├── IWatcherModule.cs         #   模块统一接口 + 事件出口接口
 │   ├── WatcherManager.cs         #   模块注册 / 运行中启停 / 事件汇入
 │   ├── DownloadWatcher.cs        #   下载/删除/重命名（含落盘判定）
 │   ├── ZoneIdentifierReader.cs   #   读取下载来源网址（NTFS 备用数据流）
 │   ├── MsiEventWatcher.cs        #   MSI 安装/卸载事件订阅
-│   ├── RegistryUninstallWatcher.cs # 注册表对比（安装/更新/卸载）
+│   ├── RegistryUninstallWatcher.cs # 注册表对比（安装/更新/卸载；自动排除自身登记键）
 │   ├── AppWatcher.cs             #   软件监视模块外壳（组合上面两个）
 │   ├── SystemEventWatcher.cs     #   开关机（事件日志 + 停机回补）
-│   ├── BrowserHistoryWatcher.cs  #   浏览器历史增量导入
 │   └── ImFileWatcher.cs          #   微信/QQ 文件监视
 ├── Services/                     # 支撑服务
 │   ├── AppSettings.cs            #   配置读写（settings.json）
 │   ├── ThemeService.cs           #   主题跟随（读系统主题 / RequestedTheme / 标题栏深色 DWM）
 │   ├── DiagnosticsLog.cs         #   滚动诊断日志（5 MB 上限）
+│   ├── TrayIconService.cs        #   托盘图标（原生 Shell_NotifyIcon + Win32 托盘菜单，零第三方依赖）
 │   ├── NotificationService.cs    #   托盘气泡（节流防刷屏）
 │   ├── EventLinker.cs            #   下载↔安装关联匹配
 │   ├── RetentionService.cs       #   过期数据清理
 │   ├── ExportService.cs          #   CSV / JSON 导出
 │   ├── ImFileStatusService.cs    #   IM 文件保存状态定期复核
-│   └── AutoStartService.cs       #   开机自启注册表
-├── ViewModels/                   # 界面逻辑（MVVM）
+│   ├── AutoStartService.cs       #   开机自启注册表
+│   └── AppRegistrationService.cs #   系统登记（卸载注册表条目 + --uninstall 入口）
+├── ViewModels/                   # 界面逻辑（MVVM，CommunityToolkit.Mvvm）
 │   ├── TimelineViewModel.cs      #   时间线（筛选/分页/前沿+尾沿节流刷新/导出）
-│   ├── StatsViewModel.cs         #   统计（汇总卡片 + 图表数据）
 │   └── ActivityEventItem.cs      #   列表行（徽章配色/状态标识）
 └── Views/                        # 界面
-    ├── TimelinePage.xaml(.cs)    #   时间线页（DataGrid + 徽章 + 右键菜单 + 列宽记忆）
-    ├── StatsPage.xaml(.cs)       #   统计页（汇总卡片 + 柱状图）
-    ├── SettingsPage.xaml(.cs)    #   设置页（模块开关卡片）
-    ├── AddEventDialog.cs         #   手动添加记录（ContentDialog）
-    └── Controls/BarChart.cs      #   柱状图控件（Canvas 绘制）
+    ├── TimelinePage.xaml(.cs)    #   时间线页（主视图：筛选工具栏 + 原生 ListView + 右键菜单）
+    ├── SettingsPage.xaml(.cs)    #   设置页（模块开关卡片，顶部返回）
+    ├── UninstallWindow.xaml(.cs) #   卸载确认窗口（--uninstall）
+    └── AddEventDialog.cs         #   手动添加记录（ContentDialog）
 ```
+
+同级还有 `PCActivityLog.Tests/`（单元测试，xUnit）与根目录 `PCActivityLog.sln`（主工程 + 测试工程，VS 直接打开）。
 
 ### 常见修改
 
 - **加一种新事件**：`EventType` 加枚举 → `EventTypeExtensions` 补三处映射 → 写一个 `IWatcherModule` → 在 `WatcherManager.BuildModules` 注册 → 设置页加开关
 - **改默认保留期**：`AppSettings` 里的属性默认值
 - **改落盘判定时间**：设置页"下载落盘判定等待"，代码在 `AppSettings.SettleSeconds`
-- **WinUI 3 注意事项**：`SymbolIcon` 的 `Symbol` 枚举值写错会让 XAML 编译器**静默崩溃**（只报 MSB3073 无行号）；`H.NotifyIcon` 不能写在 XAML 里（会破坏同文件其他命名元素），必须纯代码创建
+- **WinUI 3 注意事项**：`SymbolIcon` 的 `Symbol` 枚举值写错会让 XAML 编译器**静默崩溃**（只报 MSB3073 无行号）；托盘菜单与托盘图标均为 Win32/Shell 原生实现（`MainWindow.ShowTrayMenu` / `Services/TrayIconService.cs`），改动托盘行为请直接改这两处
 
 ## 稳定性设计（为什么它不会越跑越卡）
 
@@ -132,16 +149,14 @@ PCActivityLog/                    # WinUI 3 + .NET 8 工程
 
 ## 已知限制
 
-- 无痕/隐私窗口的浏览不会被记录（浏览器本身不写历史库，属正常现象）
 - UWP 商店应用（Microsoft Store 装的）的安装卸载暂不记录
-- 浏览器历史**从本软件首次运行开始**记录，不回补之前的存量
 - 某些绿色软件不写注册表卸载键，无法被"软件监视"捕获（可用手动记录补）
 
 ## 开发验证记录
 
 本项目开发过程中做过完整的冒烟测试（2026-09-02）：
 下载（含来源 URL）、删除、重命名、安装（1.0）、更新（1.0→2.5 记录旧版本）、卸载、
-双向事件关联、开关机回填（55 条）、浏览器增量导入（真实 Edge 数据）、
+双向事件关联、开关机回填（55 条）、
 单实例激活、模块启停压力（550 次零泄漏）、8 分钟浸泡采样（内存/句柄/线程持平）、
 优雅退出（无残留进程与错误日志）。
 
@@ -150,9 +165,9 @@ PCActivityLog/                    # WinUI 3 + .NET 8 工程
 | 目录 | 用途 |
 |---|---|
 | `DbTool/` | 命令行查库小工具：`dotnet run --project DbTool -- "SELECT * FROM events LIMIT 10"`（也支持 DELETE） |
-| `WatcherTest/` | 监视模块隔离测试/压力测试的控制台宿主（模块启停泄漏检测） |
-| `tests/` | 冒烟测试用的 PowerShell 脚本（注意：含中文的 .ps1 必须存成带 BOM 的 UTF-8，否则 PowerShell 5.1 会解析失败） |
+| `tests/` | 冒烟测试用的 PowerShell 脚本；**可重复验收入口为 `tests/acceptance.ps1`**（构建 → 产物检查 → 文档一致性守卫 → 单实例冒烟 → 诊断日志扫描）。注意：含中文的 .ps1 必须存成带 BOM 的 UTF-8，否则 PowerShell 5.1 会解析失败 |
+| `tests/make_ico.py` | 图标生成管线：SVG 逐尺寸光栅化（resvg）→ 多尺寸 ico（16/24 用简化版，32+ 用主图标）。用法：`uv run tests/make_ico.py --dark <svg> --compact <svg> --out PCActivityLog/Assets/app.ico` |
 
 ---
 
-*技术栈：.NET 8 + **WinUI 3**（Windows App SDK 1.8）· 6 个 NuGet 包：Microsoft.WindowsAppSDK、Microsoft.Windows.SDK.BuildTools、Microsoft.Data.Sqlite、CommunityToolkit.Mvvm、CommunityToolkit.WinUI.UI.Controls.DataGrid、H.NotifyIcon.WinUI*
+*技术栈：.NET 8 + **WinUI 3**（Windows App SDK 1.8）· 5 个 NuGet 包全部为微软官方维护：Microsoft.WindowsAppSDK、Microsoft.Windows.SDK.BuildTools、CommunityToolkit.Mvvm、Microsoft.Data.Sqlite、System.Diagnostics.EventLog（托盘/菜单/通知为 Win32/Shell 原生实现，无第三方托盘库）· 单元测试 xUnit + GitHub Actions CI*

@@ -23,16 +23,6 @@
             <SolidColorBrush x:Key="AppBrush" Color="#16A34A"/>
             <SolidColorBrush x:Key="BrowseBrush" Color="#0891B2"/>
             <SolidColorBrush x:Key="OtherBrush" Color="#CBD5E1"/>
-            <SolidColorBrush x:Key="StatBlueBrush" Color="#2563EB"/>
-            <SolidColorBrush x:Key="StatGreenBrush" Color="#16A34A"/>
-            <SolidColorBrush x:Key="StatCyanBrush" Color="#0891B2"/>
-            <SolidColorBrush x:Key="StatSlateBrush" Color="#475569"/>
-            <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
-            <!-- 柱状图专用：沿用徽章的高饱和色相 + 半透明（鲜艳但柔和） -->
-            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#2563EB" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartAppBrush"      Color="#16A34A" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#0891B2" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#94A3B8" Opacity="0.85"/>
         </ResourceDictionary>
 
         <!-- ============ 深色 ============ -->
@@ -54,16 +44,6 @@
             <SolidColorBrush x:Key="AppBrush" Color="#4ADE80"/>
             <SolidColorBrush x:Key="BrowseBrush" Color="#22D3EE"/>
             <SolidColorBrush x:Key="OtherBrush" Color="#64748B"/>
-            <SolidColorBrush x:Key="StatBlueBrush" Color="#60A5FA"/>
-            <SolidColorBrush x:Key="StatGreenBrush" Color="#4ADE80"/>
-            <SolidColorBrush x:Key="StatCyanBrush" Color="#22D3EE"/>
-            <SolidColorBrush x:Key="StatSlateBrush" Color="#94A3B8"/>
-            <SolidColorBrush x:Key="ChartTextBrush" Color="#94A3B8"/>
-            <!-- 柱状图专用：深色下用提亮版高饱和色 + 半透明 -->
-            <SolidColorBrush x:Key="ChartDownloadBrush" Color="#60A5FA" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartAppBrush"      Color="#4ADE80" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartBrowseBrush"   Color="#22D3EE" Opacity="0.85"/>
-            <SolidColorBrush x:Key="ChartOtherBrush"    Color="#64748B" Opacity="0.85"/>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>

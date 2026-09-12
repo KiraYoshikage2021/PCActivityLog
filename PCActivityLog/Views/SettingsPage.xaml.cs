@@ -100,6 +100,7 @@ public sealed partial class SettingsPage : Page
 
         MinimizeToTray.IsOn = _s.MinimizeToTrayOnClose;
         StartWithWindows.IsOn = AutoStartService.IsEnabled();
+        RegisterInSystem.IsOn = _s.RegisterInSystem;
     }
 
     private void RefreshFolderList()
@@ -189,6 +190,22 @@ public sealed partial class SettingsPage : Page
         if (_loading) return;
         AutoStartService.SetEnabled(StartWithWindows.IsOn);
         _s.StartWithWindows = StartWithWindows.IsOn; _s.Save();
+    }
+
+    private void Register_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _s.RegisterInSystem = RegisterInSystem.IsOn; _s.Save();
+        // 立即登记/清除（bin 目录开发运行时 Register 内部自动跳过）
+        if (_s.RegisterInSystem) AppRegistrationService.Register();
+        else AppRegistrationService.Unregister();
+    }
+
+    /// <summary>返回时间线（Frame 后退，保住时间线的筛选状态与滚动位置）。</summary>
+    private void Back_Click(object sender, RoutedEventArgs e)
+    {
+        if (Frame.CanGoBack) Frame.GoBack();
+        else Frame.Navigate(typeof(TimelinePage));
     }
 
     /// <summary>解析整数输入框；无效时返回默认值。</summary>

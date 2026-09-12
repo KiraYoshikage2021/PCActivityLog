@@ -31,8 +31,17 @@
     </Page.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="16">
-        <!-- 两列独立堆叠：各自卡片高度互不影响（避免 Grid 共享行高导致卡片被拉伸） -->
-        <Grid x:Name="SettingsRoot" ColumnSpacing="12">
+        <StackPanel Spacing="12">
+            <!-- 顶部返回（本程序无导航栏，设置页由此回到时间线） -->
+            <Button Click="Back_Click" HorizontalAlignment="Left" Padding="10,5,12,5">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE72B;" FontSize="14"/>
+                    <TextBlock Text="返回时间线"/>
+                </StackPanel>
+            </Button>
+
+            <!-- 两列独立堆叠：各自卡片高度互不影响（避免 Grid 共享行高导致卡片被拉伸） -->
+            <Grid x:Name="SettingsRoot" ColumnSpacing="12">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ColLeft" Width="*"/>
                 <ColumnDefinition x:Name="ColRight" Width="*"/>
@@ -111,6 +120,10 @@
                                       Toggled="Minimize_Toggled"/>
                         <ToggleSwitch x:Name="StartWithWindows" Header="开机自动启动（后台静默运行）" OnContent="开" OffContent="关"
                                       Toggled="AutoStart_Toggled"/>
+                        <ToggleSwitch x:Name="RegisterInSystem" Header="在系统中注册程序信息（卸载列表显示正确名称与图标）" OnContent="开" OffContent="关"
+                                      Toggled="Register_Toggled"/>
+                        <TextBlock Text="登记后 Windows「已安装应用」与卸载工具（如 BCUninstaller）能正确显示程序名称与图标，并提供卸载入口；关闭后下次启动自动清除登记。开发调试运行时不登记。"
+                                   Style="{StaticResource HintText}"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -169,5 +182,6 @@
                 </Border>
             </StackPanel>
         </Grid>
+        </StackPanel>
     </ScrollViewer>
 </Page>

@@ -2,6 +2,7 @@
     x:Class="PCActivityLog.Views.TimelinePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    NavigationCacheMode="Enabled"
     Background="{ThemeResource PageBgBrush}">
 
     <Grid Padding="16,16,16,8" RowSpacing="10">
@@ -54,6 +55,9 @@
                     <Button Content="＋ 添加记录" Click="AddEvent_Click"/>
                     <Button Content="导出 CSV" Click="ExportCsv_Click"/>
                     <Button Content="导出 JSON" Click="ExportJson_Click"/>
+                    <Button Click="OpenSettings_Click" ToolTipService.ToolTip="设置" Padding="8,5">
+                        <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE713;" FontSize="16"/>
+                    </Button>
                 </StackPanel>
             </Grid>
         </Border>

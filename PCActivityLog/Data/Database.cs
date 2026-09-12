@@ -20,11 +20,14 @@ public class Database
 
     private readonly string _connString;
 
-    public Database()
+    public Database() : this(null) { }
+
+    /// <summary>dbPath 仅供测试注入临时库；生产用无参构造（默认用户数据目录）。</summary>
+    public Database(string? dbPath)
     {
         var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PCActivityLog");
-        Directory.CreateDirectory(dir);
-        DbPath = Path.Combine(dir, "activity.db");
+        DbPath = dbPath ?? Path.Combine(dir, "activity.db");
+        Directory.CreateDirectory(Path.GetDirectoryName(DbPath)!);
         // Default Timeout：遇到锁时最多等待 30 秒（配合 WAL 几乎不会触发）
         _connString = new SqliteConnectionStringBuilder
         {
@@ -65,7 +68,7 @@ public class Database
                 source      TEXT,                          -- msi/registry/chrome/edge/firefox/manual/system/file
                 version     TEXT,                          -- 软件版本
                 old_version TEXT,                          -- 更新前的旧版本
-                occurred_at TEXT    NOT NULL,              -- 事件时间 yyyy-MM-dd HH:mm:ss（本地时间）
+                occurred_at TEXT    NOT NULL,              -- 事件时间 yyyy-MM-dd HH:mm:ss（UTC；v2.6.0 前为本地时间，启动时自动迁移）
                 note        TEXT,                          -- 用户备注
                 extra       TEXT                           -- 附加信息 JSON
             );
@@ -77,7 +80,76 @@ public class Database
             );
             """;
         init.ExecuteNonQuery();
+        MigrateLocalTimesToUtc(conn);
         DiagnosticsLog.Info($"数据库初始化完成: {DbPath}");
+    }
+
+    // ================= 时间存储约定 =================
+    // 库内 occurred_at 一律为 UTC（yyyy-MM-dd HH:mm:ss）；v2.6.0 之前为本地时间，
+    // 由 Initialize 的一次性迁移（kv_state 标记 time_store_utc）分隔。
+    // 对象模型 ActivityEvent.OccurredAt 保持本地时间：写侧统一转 UTC、读侧统一转回本地，
+    // 采集器与 UI 完全不感知，跨时区/夏令时下排序与筛选才不会错乱。
+
+    /// <summary>本地时间 → 库内 UTC 字符串。入参按本地时间解释（与本程序所有内存时间约定一致）。</summary>
+    private static string ToDbTime(DateTime local)
+        => local.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss");
+
+    /// <summary>库内 UTC 字符串 → 本地时间。</summary>
+    private static DateTime FromDbTime(string utc)
+        => DateTime.SpecifyKind(DateTime.ParseExact(utc, "yyyy-MM-dd HH:mm:ss", null), DateTimeKind.Utc).ToLocalTime();
+
+    /// <summary>
+    /// 一次性迁移：把存量"本地时间"行转换为 UTC，并在同一事务内写入标记位。
+    /// 标记位与数据行同事务提交——若迁移中途崩溃则整体回滚，下次启动重做，
+    /// 绝不会出现"行已转 UTC 但标记未写"导致的二次平移。
+    /// 注：夏令时回拨时段的历史时间存在固有歧义，按现行时区规则解析（标准做法）。
+    /// </summary>
+    private void MigrateLocalTimesToUtc(SqliteConnection conn)
+    {
+        using (var check = conn.CreateCommand())
+        {
+            check.CommandText = $"SELECT value FROM {KvTable} WHERE key='time_store_utc'";
+            if (check.ExecuteScalar() is string v && v == "1") return;
+        }
+
+        var updates = new List<(long Id, string Utc)>();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.CommandText = "SELECT id, occurred_at FROM events";
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                try
+                {
+                    var local = DateTime.ParseExact(r.GetString(1), "yyyy-MM-dd HH:mm:ss", null);
+                    updates.Add((r.GetInt64(0), ToDbTime(local)));
+                }
+                catch { /* 脏行保留原样，不阻塞启动 */ }
+            }
+        }
+
+        using var tx = conn.BeginTransaction();
+        using (var cmd = conn.CreateCommand())
+        {
+            cmd.Transaction = tx;
+            if (updates.Count > 0)
+            {
+                cmd.CommandText = "UPDATE events SET occurred_at=@t WHERE id=@id";
+                cmd.Parameters.Add("@id", SqliteType.Integer);
+                cmd.Parameters.Add("@t", SqliteType.Text);
+                foreach (var (id, utc) in updates)
+                {
+                    cmd.Parameters["@id"].Value = id;
+                    cmd.Parameters["@t"].Value = utc;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            cmd.CommandText = $"INSERT INTO {KvTable}(key, value) VALUES('time_store_utc','1')";
+            cmd.ExecuteNonQuery();
+        }
+        tx.Commit();
+        if (updates.Count > 0)
+            DiagnosticsLog.Info($"时间存储迁移：{updates.Count} 条事件由本地时间转换为 UTC");
     }
 
     // ================= 查询 =================
@@ -85,14 +157,9 @@ public class Database
     /// <summary>时间线查询参数：筛选 + 搜索 + 日期范围 + 分页。</summary>
     public record QueryFilter(EventGroup Group, string? Search, DateTime? From, DateTime? To, int Offset, int Limit);
 
-    /// <summary>按筛选条件查询事件列表（时间倒序）。</summary>
-    public List<ActivityEvent> QueryEvents(QueryFilter f)
+    /// <summary>按筛选条件组装 WHERE 子句并绑定参数（QueryEvents / CountEvents 共用，防止两处漂移）。</summary>
+    private static void BuildFilterWhere(SqliteCommand cmd, QueryFilter f, List<string> where)
     {
-        var list = new List<ActivityEvent>();
-        using var conn = Open();
-        using var cmd = conn.CreateCommand();
-
-        var where = new List<string>();
         var types = f.Group.ToDbTypeList();
         if (types.Length > 0)
         {
@@ -107,10 +174,28 @@ public class Database
             where.Add("(name LIKE @q OR note LIKE @q OR path LIKE @q OR url LIKE @q)");
             cmd.Parameters.AddWithValue("@q", "%" + f.Search.Trim() + "%");
         }
-        if (f.From.HasValue) where.Add("occurred_at >= @from");
-        if (f.From.HasValue) cmd.Parameters.AddWithValue("@from", f.From.Value.ToString("yyyy-MM-dd HH:mm:ss"));
-        if (f.To.HasValue) where.Add("occurred_at < @to");
-        if (f.To.HasValue) cmd.Parameters.AddWithValue("@to", f.To.Value.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+        // 日期范围是用户选择的本地日历日；库内为 UTC，边界在此统一转换
+        if (f.From.HasValue)
+        {
+            where.Add("occurred_at >= @from");
+            cmd.Parameters.AddWithValue("@from", ToDbTime(f.From.Value));
+        }
+        if (f.To.HasValue)
+        {
+            where.Add("occurred_at < @to");
+            cmd.Parameters.AddWithValue("@to", ToDbTime(f.To.Value.AddDays(1)));
+        }
+    }
+
+    /// <summary>按筛选条件查询事件列表（时间倒序）。</summary>
+    public List<ActivityEvent> QueryEvents(QueryFilter f)
+    {
+        var list = new List<ActivityEvent>();
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+
+        var where = new List<string>();
+        BuildFilterWhere(cmd, f, where);
 
         cmd.CommandText = $"""
             SELECT id, type, name, path, size_bytes, url, source, version, old_version, occurred_at, note, extra
@@ -132,23 +217,7 @@ public class Database
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         var where = new List<string>();
-        var types = f.Group.ToDbTypeList();
-        if (types.Length > 0)
-        {
-            var names = types.Select((_, i) => "@t" + i).ToArray();
-            where.Add($"type IN ({string.Join(',', names)})");
-            for (int i = 0; i < types.Length; i++)
-                cmd.Parameters.AddWithValue("@t" + i, types[i]);
-        }
-        if (!string.IsNullOrWhiteSpace(f.Search))
-        {
-            where.Add("(name LIKE @q OR note LIKE @q OR path LIKE @q OR url LIKE @q)");
-            cmd.Parameters.AddWithValue("@q", "%" + f.Search.Trim() + "%");
-        }
-        if (f.From.HasValue) where.Add("occurred_at >= @from");
-        if (f.From.HasValue) cmd.Parameters.AddWithValue("@from", f.From.Value.ToString("yyyy-MM-dd HH:mm:ss"));
-        if (f.To.HasValue) where.Add("occurred_at < @to");
-        if (f.To.HasValue) cmd.Parameters.AddWithValue("@to", f.To.Value.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss"));
+        BuildFilterWhere(cmd, f, where);
 
         cmd.CommandText = $"SELECT COUNT(*) FROM events {(where.Count > 0 ? "WHERE " + string.Join(" AND ", where) : "")}";
         return (long)cmd.ExecuteScalar()!;
@@ -165,6 +234,20 @@ public class Database
         return reader.Read() ? ReadEvent(reader) : null;
     }
 
+    /// <summary>
+    /// 是否已存在同产品、同版本的安装记录（供 MSI 通道识别"修复/重跑"——
+    /// Windows Installer 对重装/修复同样发"安装成功"事件，版本未变的不应重复入账）。
+    /// </summary>
+    public bool HasInstallEvent(string name, string version)
+    {
+        using var conn = Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT 1 FROM events WHERE type='install' AND name=@name AND version=@version LIMIT 1";
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@version", version);
+        return cmd.ExecuteScalar() is not null;
+    }
+
     /// <summary>查询某时间之后、某类型的下载事件（供下载↔安装关联匹配）。</summary>
     public List<ActivityEvent> QueryDownloadsSince(DateTime since)
     {
@@ -177,7 +260,7 @@ public class Database
             WHERE type='download' AND occurred_at >= @since
             ORDER BY id DESC LIMIT 200
             """;
-        cmd.Parameters.AddWithValue("@since", since.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@since", ToDbTime(since));
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) list.Add(ReadEvent(reader));
         return list;
@@ -218,7 +301,7 @@ public class Database
             ORDER BY id DESC LIMIT 2000
             """;
         cmd.Parameters.AddWithValue("@t", type);
-        cmd.Parameters.AddWithValue("@since", since.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@since", ToDbTime(since));
         using var reader = cmd.ExecuteReader();
         while (reader.Read()) list.Add(ReadEvent(reader));
         return list;
@@ -263,7 +346,7 @@ public class Database
             Source = r.IsDBNull(6) ? null : r.GetString(6),
             Version = r.IsDBNull(7) ? null : r.GetString(7),
             OldVersion = r.IsDBNull(8) ? null : r.GetString(8),
-            OccurredAt = DateTime.ParseExact(r.GetString(9), "yyyy-MM-dd HH:mm:ss", null),
+            OccurredAt = FromDbTime(r.GetString(9)),
             Note = r.IsDBNull(10) ? null : r.GetString(10),
             Extra = r.IsDBNull(11) ? null : r.GetString(11),
         };
@@ -282,7 +365,7 @@ public class Database
         cmd.Parameters.AddWithValue("@source", (object?)e.Source ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@ver", (object?)e.Version ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@oldver", (object?)e.OldVersion ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("@at", e.OccurredAt.ToString("yyyy-MM-dd HH:mm:ss"));
+        cmd.Parameters.AddWithValue("@at", ToDbTime(e.OccurredAt));
         cmd.Parameters.AddWithValue("@note", (object?)e.Note ?? DBNull.Value);
         cmd.Parameters.AddWithValue("@extra", (object?)e.Extra ?? DBNull.Value);
     }
