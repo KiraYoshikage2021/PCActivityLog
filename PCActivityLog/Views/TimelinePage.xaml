@@ -61,17 +61,27 @@
 
                         <TextBlock x:Name="DateFromLabel" Grid.Column="3" Text="从" VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextSecondaryBrush}"/>
-                        <!-- 日期选择：官方模板把可见面写死 MinWidth=296/MaxWidth=456 且「月份框」独占 ~46% 宽度，
-                             显得空旷（App 资源覆盖 StaticResource 无效）——改用 Themes/DatePickerCompact.xaml
-                             的紧凑模板按内容自适应，配数字格式去掉 年/月/日 后缀占位 -->
-                        <DatePicker x:Name="DatePickerFrom" Grid.Column="4"
-                                    YearFormat="{}{year.full}" MonthFormat="{}{month.integer}" DayFormat="{}{day.integer}"
-                                    SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
+                        <!-- 日期选择：日期按钮 + CalendarView 日历下拉。原 WinUI DatePicker 的可见面与
+                             弹出层模板存在多处写死的宽度/对齐行为且无法用资源覆盖修正，整体弃用；
+                             选中即写入 Vm.DateFrom/DateTo（触发自动刷新）并收起日历 -->
+                        <DropDownButton x:Name="DateFromButton" Grid.Column="4" Height="36" MinWidth="124"
+                                        ToolTipService.ToolTip="选择开始日期">
+                            <DropDownButton.Flyout>
+                                <Flyout Placement="Bottom">
+                                    <CalendarView/>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
                         <TextBlock x:Name="DateToLabel" Grid.Column="5" Text="到" VerticalAlignment="Center"
                                    Foreground="{ThemeResource TextSecondaryBrush}"/>
-                        <DatePicker x:Name="DatePickerTo" Grid.Column="6"
-                                    YearFormat="{}{year.full}" MonthFormat="{}{month.integer}" DayFormat="{}{day.integer}"
-                                    SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
+                        <DropDownButton x:Name="DateToButton" Grid.Column="6" Height="36" MinWidth="124"
+                                        ToolTipService.ToolTip="选择结束日期">
+                            <DropDownButton.Flyout>
+                                <Flyout Placement="Bottom">
+                                    <CalendarView/>
+                                </Flyout>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
 
                     <!-- 四个按钮统一高度 36（工具栏整行控件同高）；
                           WinUI 按钮默认按内容算高且 32 对中文字形偏挤（文字贴底被裁） -->

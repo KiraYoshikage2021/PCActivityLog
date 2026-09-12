@@ -38,6 +38,12 @@ public sealed partial class TimelinePage : Page
         };
         Vm.SelectRequested = OnSelectRequested;
 
+        // 日期按钮文本随 Vm.DateFrom/DateTo 变化刷新（ApplyRange、日历选择都会走这里）
+        Vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Vm.DateFrom) or nameof(Vm.DateTo)) SyncDateButtons();
+        };
+
         // 响应式工具栏：窗口宽度不足时把日期区间与按钮组搬到第二行（独立列宽），
         // 避免单行溢出被窗口边缘裁剪（SettingsPage 同款响应式模式）
         SizeChanged += (_, e) => ApplyToolbarLayout(e.NewSize.Width);
@@ -52,6 +58,7 @@ public sealed partial class TimelinePage : Page
         Loaded += (_, _) =>
         {
             ApplyToolbarLayout(ActualWidth); // 初次布局/缓存恢复后按当前宽度归位
+            SetupDatePickers();              // 挂接日历事件并同步初始显示（订阅前 VM 已初始化）
             if (!_initialized)
             {
                 _initialized = true;
@@ -83,9 +90,9 @@ public sealed partial class TimelinePage : Page
         {
             // 两行：日期区间与按钮组搬进 DateRow（列宽独立，不再继承第一行分组/搜索列的宽度）
             MoveInto(DateRow, 0, DateFromLabel);
-            MoveInto(DateRow, 1, DatePickerFrom);
+            MoveInto(DateRow, 1, DateFromButton);
             MoveInto(DateRow, 2, DateToLabel);
-            MoveInto(DateRow, 3, DatePickerTo);
+            MoveInto(DateRow, 3, DateToButton);
             MoveInto(DateRow, 5, ActionButtons);
             DateRow.Visibility = Visibility.Visible;
         }
@@ -93,9 +100,9 @@ public sealed partial class TimelinePage : Page
         {
             // 单行：搬回 FilterRow 的原始列位
             MoveInto(FilterRow, 3, DateFromLabel);
-            MoveInto(FilterRow, 4, DatePickerFrom);
+            MoveInto(FilterRow, 4, DateFromButton);
             MoveInto(FilterRow, 5, DateToLabel);
-            MoveInto(FilterRow, 6, DatePickerTo);
+            MoveInto(FilterRow, 6, DateToButton);
             MoveInto(FilterRow, 8, ActionButtons);
             DateRow.Visibility = Visibility.Collapsed;
         }
@@ -109,6 +116,72 @@ public sealed partial class TimelinePage : Page
         element.SetValue(Grid.RowProperty, 0);
         element.SetValue(Grid.ColumnProperty, column);
         target.Children.Add(element);
+    }
+
+    // ---------- 日期选择（日期按钮 + CalendarView 日历下拉） ----------
+
+    // 注意：日历的 Opening/SelectedDatesChanged 不写在 XAML 里——事件特性写在
+    // Button.Flyout 内容上会触发 XamlCompiler 静默崩溃（pass1 产出空 .g.cs），
+    // 改在 Loaded 里编程挂接。
+    private bool _syncingFromDate;
+    private bool _syncingToDate;
+    private CalendarView? _fromCalendar;
+    private CalendarView? _toCalendar;
+
+    /// <summary>日期按钮的显示文本（随 Vm.DateFrom/DateTo 变化刷新）。</summary>
+    private string FormatDate(DateTimeOffset? d) => d?.ToString("yyyy-MM-dd") ?? "选择日期";
+
+    /// <summary>挂接两个日历的事件。</summary>
+    private void SetupDatePickers()
+    {
+        _fromCalendar = DateFromButton.Flyout is Flyout ff && ff.Content is CalendarView c1 ? c1 : null;
+        _toCalendar = DateToButton.Flyout is Flyout tf && tf.Content is CalendarView c2 ? c2 : null;
+        if (_fromCalendar == null || _toCalendar == null
+            || DateFromButton.Flyout is not Flyout fromFlyout
+            || DateToButton.Flyout is not Flyout toFlyout)
+            return;
+
+        fromFlyout.Opening += (_, _) => SyncCalendarTo(_fromCalendar!, Vm.DateFrom, from: true);
+        toFlyout.Opening += (_, _) => SyncCalendarTo(_toCalendar!, Vm.DateTo, from: false);
+
+        _fromCalendar.SelectedDatesChanged += FromCalendar_SelectedDatesChanged;
+        _toCalendar.SelectedDatesChanged += ToCalendar_SelectedDatesChanged;
+
+        SyncDateButtons();
+    }
+
+    /// <summary>日历打开时同步显示与选中当前筛选值（同步期间抑制回写与收起）。</summary>
+    private void SyncCalendarTo(CalendarView cal, DateTimeOffset? current, bool from)
+    {
+        if (from) _syncingFromDate = true; else _syncingToDate = true;
+        cal.SetDisplayDate((current ?? DateTimeOffset.Now).DateTime);
+        cal.SelectedDates.Clear();
+        cal.SelectedDates.Add((current ?? DateTimeOffset.Now).DateTime);
+        if (from) _syncingFromDate = false; else _syncingToDate = false;
+    }
+
+    /// <summary>刷新日期按钮文本。</summary>
+    private void SyncDateButtons()
+    {
+        DateFromButton.Content = FormatDate(Vm.DateFrom);
+        DateToButton.Content = FormatDate(Vm.DateTo);
+    }
+
+    private void FromCalendar_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
+    {
+        // WinUI 3 的事件参数没有 AddedItems（UWP 才有），从 sender.SelectedDates 读取
+        if (_syncingFromDate || sender.SelectedDates.Count == 0) return;
+        Vm.DateFrom = sender.SelectedDates[0]; // 触发 Vm 自动刷新
+        SyncDateButtons();
+        ((Flyout)DateFromButton.Flyout!).Hide();
+    }
+
+    private void ToCalendar_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
+    {
+        if (_syncingToDate || sender.SelectedDates.Count == 0) return;
+        Vm.DateTo = sender.SelectedDates[0];
+        SyncDateButtons();
+        ((Flyout)DateToButton.Flyout!).Hide();
     }
 
     // ---------- 行交互 ----------
