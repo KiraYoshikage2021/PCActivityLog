@@ -225,3 +225,16 @@
 4. **SQL WHERE 去重（P2 项）**：`QueryEvents`/`CountEvents` 共用新增的 `BuildFilterWhere`，消除约 20 行复制粘贴。
 5. **测试结果**：`dotnet test` 43/43 通过；`tests/acceptance.ps1` 已加入单元测试步骤（现为 6 步）。
 6. **本轮仍未处理**：DI 容器重构（P2；建议待测试覆盖扩大后再动全局装配）、tests/ 目录一次性调试脚本的清理归档、崩溃遥测。加密/签名/安装器等维度 6/8 的 P0/P1 项不在本维度范围内。
+
+### 第三轮整改（2026-09-12，维度 8 的 P0 及 P1 一部分）
+
+1. **Inno Setup 安装器（P0）**：新增 `installer/PCActivityLog.iss` 与 `installer/build.ps1`（dotnet publish → ISCC 一条龙，版本号取自 csproj）：
+   - `PrivilegesRequired=lowest`：按当前用户装到 `{localappdata}\Programs`，与程序"仅写 HKCU、免管理员"的设计一致；开始菜单 + 桌面快捷方式
+   - **升级路径**：同一 AppId 重跑新版本安装包即原位升级，用户数据（`%LOCALAPPDATA%\PCActivityLog`）不受影响
+   - 升级/卸载前通过程序自身的单实例退出信号优雅关闭（冲写数据库队列，不强杀）；卸载完成时询问是否删数据，静默卸载默认保留
+   - **与程序端整合**：`AppRegistrationService.IsInstallerManaged()` 检测安装器卸载键（`PCActivityLog_is1`），安装器版自动跳过自我登记并清理旧条目，避免「设置 → 应用」重复条目
+   - 产出：`PCActivityLog-Setup-2.6.1.exe`（210 MB 发布目录压缩为 60.5 MB 单文件）
+   - **端到端实测通过**：静默安装 → 启动（注册表仅 `_is1` 一条）→ 经退出信号优雅关闭 → 静默卸载（程序目录/快捷方式/注册表全部清除，用户数据按设计保留）
+2. **发布校验加固（workaround 脆弱点）**：csproj 新增 `VerifyPublishArtifacts` target，发布后校验 `.xbf`/`.pri`/`app.ico` 确实进入发布目录，缺失即构建失败并说明原因——把"删掉 workaround 发布版启动即崩"的静默风险变成构建期显式报错；上游 SDK 修复后 Copy target 自然变空操作，校验仍兜底。
+3. **版本升至 2.6.1** 并提交打 tag。
+4. **本轮未做（按用户指示排除）**：代码签名与主流杀软报白（需购置证书与外部流程）、启动时新版本检查提示。

@@ -6,6 +6,9 @@ obj/
 # 发布输出（156MB 单文件绝不能进 git）
 publish*/
 
+# 安装包输出（publish 镜像 + 成品 Setup exe）
+installer/dist/
+
 # Visual Studio / Rider
 .vs/
 .idea/
@@ -17,3 +20,6 @@ Thumbs.db
 .DS_Store
 .zcode/
 tests/icon_frames/
+
+# 安装器构建/安装测试日志
+installer/*.log

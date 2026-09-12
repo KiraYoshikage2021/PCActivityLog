@@ -42,6 +42,21 @@ public static class AppRegistrationService
     }
 
     /// <summary>
+    /// 当前安装是否由安装器（Inno Setup）管理。安装包用 AppId=PCActivityLog，
+    /// 卸载条目键名为 <c>PCActivityLog_is1</c>；检测到它时程序跳过自我登记——
+    /// 否则「设置 → 应用」会出现两条同名条目（安装器一条 + 自登记一条）。
+    /// </summary>
+    public static bool IsInstallerManaged()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(UninstallRoot + "\\" + SelfKeyName + "_is1", writable: false);
+            return key != null;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
     /// 登记/更新程序信息。路径或版本变化时自动更新（程序搬位置后自愈），
     /// 无变化时不重复写注册表。静默失败只记日志。
     /// </summary>
@@ -49,6 +64,14 @@ public static class AppRegistrationService
     {
         var exe = Environment.ProcessPath;
         if (exe == null || IsDevRun()) return;
+
+        // 安装器管理的安装：卸载条目由安装器负责，自我登记只会产生重复条目；
+        // 若此前以绿色版方式运行登记过，顺带清掉旧条目
+        if (IsInstallerManaged())
+        {
+            if (IsRegistered()) Unregister();
+            return;
+        }
 
         try
         {

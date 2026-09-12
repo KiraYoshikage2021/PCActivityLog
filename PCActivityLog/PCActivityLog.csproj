@@ -15,7 +15,7 @@
     <SelfContained>true</SelfContained>
     <EnableMsixTooling>false</EnableMsixTooling>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>2.6.0</Version>
+    <Version>2.6.1</Version>
     <AssemblyName>PCActivityLog</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
@@ -37,5 +37,17 @@
     </ItemGroup>
     <Copy SourceFiles="@(XamlArtifacts)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="false" />
     <Copy SourceFiles="@(IconArtifact)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="false" />
+  </Target>
+  <!-- 发布校验：上面的 workaround 必须真的把 XAML 产物送进发布目录，否则发布版启动即崩
+       且用户只会在运行时看到无声失败。上游 SDK 修复该缺陷后，CopyXamlArtifactsOnPublish
+       自然变空操作，本校验仍然兜底——把"静默的脆弱点"变成"构建期显式报错"。 -->
+  <Target Name="VerifyPublishArtifacts" AfterTargets="CopyXamlArtifactsOnPublish">
+    <ItemGroup>
+      <_PublishedXbf Include="$(PublishDir)*.xbf" />
+      <_PublishedPri Include="$(PublishDir)*.pri" />
+    </ItemGroup>
+    <Error Condition="'@(_PublishedXbf)' == ''" Text="发布目录缺少 .xbf（XAML 编译产物），发布版会启动即崩；请检查 CopyXamlArtifactsOnPublish target 是否生效。" />
+    <Error Condition="'@(_PublishedPri)' == ''" Text="发布目录缺少 .pri（资源索引），发布版会启动即崩；请检查 CopyXamlArtifactsOnPublish target 是否生效。" />
+    <Error Condition="!Exists('$(PublishDir)app.ico')" Text="发布目录缺少 app.ico（AppWindow.SetIcon 需要文件路径），请检查 CopyXamlArtifactsOnPublish target。" />
   </Target>
 </Project>

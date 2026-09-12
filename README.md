@@ -24,7 +24,20 @@
 
 ## 如何使用
 
-### 方式一：直接用发布版（推荐）
+### 方式一：安装包（推荐）
+
+一键构建 Inno Setup 安装包（前置：安装 Inno Setup 6，`winget install JRSoftware.InnoSetup`）：
+
+```bash
+powershell -ExecutionPolicy Bypass -File installer\build.ps1
+```
+
+产物 `installer\dist\PCActivityLog-Setup-<版本>.exe`（约 60 MB）：按当前用户安装（免管理员）、
+自动创建开始菜单/桌面快捷方式；**重跑新版本安装包即原位升级**（用户数据不受影响）；
+升级与卸载前会通过程序自身的退出信号优雅关闭（冲写数据库队列，不强杀）；
+卸载时可选是否同时删除应用数据。
+
+### 方式二：免安装目录版
 
 构建免安装的发布目录（WinUI 3 自包含，免装运行时）：
 
@@ -38,9 +51,11 @@ dotnet publish -c Release -r win-x64 -p:WindowsAppSDKSelfContained=true -o bin/R
 
 > ⚠️ WinUI 3 必须用**目录形式**发布（不支持单文件打包）。
 > 本项目 csproj 里的 `CopyXamlArtifactsOnPublish` 目标用于绕过
-> `dotnet publish` 不复制 `.xbf`/`.pri` 的已知缺陷——**删掉它发布版会启动即崩**。
+> `dotnet publish` 不复制 `.xbf`/`.pri` 的已知缺陷；紧随其后的
+> `VerifyPublishArtifacts` 目标会在发布时校验 XAML 产物与 app.ico 确实进入发布目录，
+> 缺失直接构建失败——不会把"启动即崩"的包发给用户。
 
-### 方式二：从源码运行
+### 方式三：从源码运行
 
 用 Visual Studio 2022 打开根目录的 `PCActivityLog.sln`（或直接打开 `PCActivityLog\PCActivityLog.csproj`）按 F5，
 或在命令行 `dotnet run --project PCActivityLog`。运行单元测试：`dotnet test PCActivityLog.Tests`。
@@ -59,7 +74,9 @@ BCUninstaller 等卸载工具能正确显示"电脑日志记录"的名称、版�
 - 卸载时程序会清除登记信息、关闭开机自启动，然后打开资源管理器定位到程序文件夹，**程序文件由你手动删除**；
 - 可选勾选"同时删除应用数据"（日志数据库与设置）；
 - 如果程序正在后台运行，会先请求它退出；
-- 不想登记的话，在设置 → 通用行为里关闭"在系统中注册程序信息"，下次启动自动清除登记。
+- 不想登记的话，在设置 → 通用行为里关闭"在系统中注册程序信息"，下次启动自动清除登记；
+- **通过安装包安装时**，卸载条目由安装器负责（`PCActivityLog_is1`），程序检测到后自动跳过
+  自我登记并清理旧条目，避免「设置 → 应用」出现重复条目；绿色目录版行为不变。
 
 ### 更换图标后缩略图没变？
 
@@ -170,4 +187,4 @@ PCActivityLog/                    # WinUI 3 + .NET 8 工程
 
 ---
 
-*技术栈：.NET 8 + **WinUI 3**（Windows App SDK 1.8）· 5 个 NuGet 包全部为微软官方维护：Microsoft.WindowsAppSDK、Microsoft.Windows.SDK.BuildTools、CommunityToolkit.Mvvm、Microsoft.Data.Sqlite、System.Diagnostics.EventLog（托盘/菜单/通知为 Win32/Shell 原生实现，无第三方托盘库）· 单元测试 xUnit + GitHub Actions CI*
+*技术栈：.NET 8 + **WinUI 3**（Windows App SDK 1.8）· 5 个 NuGet 包全部为微软官方维护：Microsoft.WindowsAppSDK、Microsoft.Windows.SDK.BuildTools、CommunityToolkit.Mvvm、Microsoft.Data.Sqlite、System.Diagnostics.EventLog（托盘/菜单/通知为 Win32/Shell 原生实现，无第三方托盘库）· 安装包 Inno Setup（installer/）· 单元测试 xUnit + GitHub Actions CI*
