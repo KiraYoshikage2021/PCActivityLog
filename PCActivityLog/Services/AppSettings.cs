@@ -95,6 +95,20 @@ public class AppSettings
     /// <summary>在系统卸载注册表中登记程序信息（「已安装应用」/卸载工具显示正确名称与图标）。关闭后下次启动自动清除登记。</summary>
     public bool RegisterInSystem { get; set; } = true;
 
+    // ---------- 窗口几何（记住上次大小与位置） ----------
+
+    /// <summary>是否已记录有效窗口几何（首次运行前为 false，用默认尺寸）。</summary>
+    public bool WindowBoundsValid { get; set; } = false;
+
+    /// <summary>窗口位置与大小（物理像素，AppWindow 原生单位，跨会话直接还原）。</summary>
+    public int WindowLeft { get; set; }
+    public int WindowTop { get; set; }
+    public int WindowWidth { get; set; }
+    public int WindowHeight { get; set; }
+
+    /// <summary>记录时窗口是否处于最大化（恢复时单独还原，不与正常几何混存）。</summary>
+    public bool WindowMaximized { get; set; } = false;
+
     // ---------- 持久化 ----------
 
     private static readonly string SettingsFile = Path.Combine(
@@ -181,6 +195,10 @@ public class AppSettings
         SettleSeconds = Math.Clamp(SettleSeconds, 2, 60);
         RegistryPollSeconds = Math.Clamp(RegistryPollSeconds, 10, 3600);
         OtherRetentionDays = Math.Max(0, OtherRetentionDays);
+
+        // 窗口几何明显不合理（记录异常）时作废，回落默认尺寸
+        if (WindowWidth < 200 || WindowHeight < 150)
+            WindowBoundsValid = false;
     }
 }
 

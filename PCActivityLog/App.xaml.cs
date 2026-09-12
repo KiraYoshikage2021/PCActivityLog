@@ -207,7 +207,8 @@ public partial class App : Application
 
         DiagnosticsLog.Info("开始退出流程…");
 
-        // 1. 先隐藏窗口和托盘图标（立即反馈）
+        // 1. 先隐藏窗口和托盘图标（立即反馈）；窗口仍存在，先把几何落盘（防抖可能还没触发）
+        SafeRun("保存窗口几何", () => MainWindowInstance?.SaveWindowGeometry());
         SafeRun("隐藏窗口", () => MainWindowInstance?.HideForExit());
         SafeRun("移除托盘图标", () => MainWindowInstance?.DisposeTray());
 

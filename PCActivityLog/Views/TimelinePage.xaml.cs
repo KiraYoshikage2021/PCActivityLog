@@ -38,6 +38,10 @@ public sealed partial class TimelinePage : Page
         };
         Vm.SelectRequested = OnSelectRequested;
 
+        // 响应式工具栏：窗口宽度不足时把日期区间与按钮组搬到第二行（独立列宽），
+        // 避免单行溢出被窗口边缘裁剪（SettingsPage 同款响应式模式）
+        SizeChanged += (_, e) => ApplyToolbarLayout(e.NewSize.Width);
+
         // 用户滚动/点击列表时通知 VM 避让自动刷新（刷新会重建集合打断滚动）
         EventList.AddHandler(PointerWheelChangedEvent,
             (PointerEventHandler)((_, _) => Vm.NotifyUserActive()), true);
@@ -47,6 +51,7 @@ public sealed partial class TimelinePage : Page
         // 页面被 Frame 缓存，Loaded 会多次触发：首次才全量查库，之后只轻量补刷
         Loaded += (_, _) =>
         {
+            ApplyToolbarLayout(ActualWidth); // 初次布局/缓存恢复后按当前宽度归位
             if (!_initialized)
             {
                 _initialized = true;
@@ -57,6 +62,53 @@ public sealed partial class TimelinePage : Page
                 Vm.RefreshIfIdle();
             }
         };
+    }
+
+    // ---------- 响应式工具栏（单行 ⇄ 两行） ----------
+
+    /// <summary>单行工具栏（含左右内边距）所需的最小窗口宽度；不足则折两行。</summary>
+    private const double ToolbarSingleRowMinWidth = 1310;
+
+    /// <summary>当前是否已处于两行布局（避免重复搬移）。</summary>
+    private bool _toolbarWrapped;
+
+    private void ApplyToolbarLayout(double width)
+    {
+        if (double.IsNaN(width) || width <= 0) return;
+        bool wrap = width < ToolbarSingleRowMinWidth;
+        if (wrap == _toolbarWrapped) return;
+        _toolbarWrapped = wrap;
+
+        if (wrap)
+        {
+            // 两行：日期区间与按钮组搬进 DateRow（列宽独立，不再继承第一行分组/搜索列的宽度）
+            MoveInto(DateRow, 0, DateFromLabel);
+            MoveInto(DateRow, 1, DatePickerFrom);
+            MoveInto(DateRow, 2, DateToLabel);
+            MoveInto(DateRow, 3, DatePickerTo);
+            MoveInto(DateRow, 5, ActionButtons);
+            DateRow.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            // 单行：搬回 FilterRow 的原始列位
+            MoveInto(FilterRow, 3, DateFromLabel);
+            MoveInto(FilterRow, 4, DatePickerFrom);
+            MoveInto(FilterRow, 5, DateToLabel);
+            MoveInto(FilterRow, 6, DatePickerTo);
+            MoveInto(FilterRow, 8, ActionButtons);
+            DateRow.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>把元素搬进目标 Grid 的指定列（元素可能已在源 Grid 或另一个 Grid 中）。</summary>
+    private static void MoveInto(Grid target, int column, FrameworkElement element)
+    {
+        if (element.Parent is Grid oldGrid)
+            oldGrid.Children.Remove(element);
+        element.SetValue(Grid.RowProperty, 0);
+        element.SetValue(Grid.ColumnProperty, column);
+        target.Children.Add(element);
     }
 
     // ---------- 行交互 ----------

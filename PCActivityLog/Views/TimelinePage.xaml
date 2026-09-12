@@ -16,50 +16,100 @@
         <Border Grid.Row="0" Background="{ThemeResource CardBgBrush}"
                 BorderBrush="{ThemeResource CardBorderBrush}" BorderThickness="1"
                 CornerRadius="10" Padding="12,9">
-            <Grid ColumnSpacing="8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
+            <!-- 横向滚动兜底：窗口极窄时出滚动条而非裁剪控件 -->
+            <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <!-- 两行各自独立 Grid（列宽互不干扰）：宽窗口全部在 FilterRow 单行；
+                     窄窗口由代码后置把日期区间与按钮组搬进 DateRow（SettingsPage 同款响应式模式） -->
+                <Grid RowSpacing="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                <ComboBox Grid.Column="0" Width="118"
-                          ItemsSource="{x:Bind Vm.Groups}"
-                          SelectedItem="{x:Bind Vm.SelectedGroup, Mode=TwoWay}"
-                          DisplayMemberPath="Name"/>
+                    <Grid x:Name="FilterRow" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
-                <!-- 时间范围快捷选择 -->
-                <ComboBox Grid.Column="1" Width="112" Margin="0,0,8,0"
-                          ItemsSource="{x:Bind Vm.DateRanges}"
-                          SelectedItem="{x:Bind Vm.SelectedRange, Mode=TwoWay}"
-                          DisplayMemberPath="Name"/>
+                        <!-- 分组下拉：自适应宽度（下限防跳动、上限防长分组名撑爆工具栏），超宽省略号 -->
+                        <ComboBox x:Name="GroupBox" Grid.Column="0" Height="36" MinWidth="118" MaxWidth="180"
+                                  ItemsSource="{x:Bind Vm.Groups}"
+                                  SelectedItem="{x:Bind Vm.SelectedGroup, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
 
-                <TextBox Grid.Column="2" Width="200" PlaceholderText="搜索名称 / 路径 / 备注"
-                         Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <!-- 时间范围快捷选择：去掉固定宽度（原 112 放不下「最近 90 天」被截断），用 MinWidth 防选中项切换时跳动 -->
+                        <ComboBox Grid.Column="1" Height="36" MinWidth="128" Margin="0,0,8,0"
+                                  ItemsSource="{x:Bind Vm.DateRanges}"
+                                  SelectedItem="{x:Bind Vm.SelectedRange, Mode=TwoWay}"
+                                  DisplayMemberPath="Name"/>
 
-                <TextBlock Grid.Column="3" Text="从" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextSecondaryBrush}"/>
-                <DatePicker Grid.Column="4" Width="130" SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
-                <TextBlock Grid.Column="5" Text="到" VerticalAlignment="Center"
-                           Foreground="{ThemeResource TextSecondaryBrush}"/>
-                <DatePicker Grid.Column="6" Width="130" SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
+                        <TextBox Grid.Column="2" Height="36" Width="200" PlaceholderText="搜索名称 / 路径 / 备注"
+                                 Text="{x:Bind Vm.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <StackPanel Grid.Column="8" Orientation="Horizontal" Spacing="8">
-                    <Button Content="查询" Command="{x:Bind Vm.RefreshCommand}" Style="{StaticResource AccentButtonStyle}"/>
-                    <Button Content="＋ 添加记录" Click="AddEvent_Click"/>
-                    <Button Content="导出 CSV" Click="ExportCsv_Click"/>
-                    <Button Content="导出 JSON" Click="ExportJson_Click"/>
-                    <Button Click="OpenSettings_Click" ToolTipService.ToolTip="设置" Padding="8,5">
-                        <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE713;" FontSize="16"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
+                        <TextBlock x:Name="DateFromLabel" Grid.Column="3" Text="从" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <!-- 日期选择：官方模板把可见面写死 MinWidth=296/MaxWidth=456 且「月份框」独占 ~46% 宽度，
+                             显得空旷（App 资源覆盖 StaticResource 无效）——改用 Themes/DatePickerCompact.xaml
+                             的紧凑模板按内容自适应，配数字格式去掉 年/月/日 后缀占位 -->
+                        <DatePicker x:Name="DatePickerFrom" Grid.Column="4"
+                                    YearFormat="{}{year.full}" MonthFormat="{}{month.integer}" DayFormat="{}{day.integer}"
+                                    SelectedDate="{x:Bind Vm.DateFrom, Mode=TwoWay}"/>
+                        <TextBlock x:Name="DateToLabel" Grid.Column="5" Text="到" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextSecondaryBrush}"/>
+                        <DatePicker x:Name="DatePickerTo" Grid.Column="6"
+                                    YearFormat="{}{year.full}" MonthFormat="{}{month.integer}" DayFormat="{}{day.integer}"
+                                    SelectedDate="{x:Bind Vm.DateTo, Mode=TwoWay}"/>
+
+                    <!-- 四个按钮统一高度 36（工具栏整行控件同高）；
+                          WinUI 按钮默认按内容算高且 32 对中文字形偏挤（文字贴底被裁） -->
+                    <StackPanel x:Name="ActionButtons" Grid.Column="8" Orientation="Horizontal" Spacing="8">
+                        <Button Content="查询" Height="36" Command="{x:Bind Vm.RefreshCommand}" Style="{StaticResource AccentButtonStyle}"/>
+                        <Button Content="＋ 添加记录" Height="36" Click="AddEvent_Click"/>
+                        <Button Height="36" ToolTipService.ToolTip="导出当前筛选结果">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="导出" VerticalAlignment="Center"/>
+                                <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE70D;" FontSize="12"/>
+                            </StackPanel>
+                            <Button.Flyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="导出 CSV" Click="ExportCsv_Click"/>
+                                    <MenuFlyoutItem Text="导出 JSON" Click="ExportJson_Click"/>
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                        <!-- 齿轮按钮：与其他按钮同高；图标按钮自然略窄 -->
+                        <Button Click="OpenSettings_Click" Height="36" ToolTipService.ToolTip="设置">
+                            <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE713;" FontSize="16"/>
+                        </Button>
+                    </StackPanel>
+                    </Grid>
+
+                    <!-- 窄窗口第二行（默认折叠，代码后置按窗口宽度启用） -->
+                    <Grid x:Name="DateRow" Grid.Row="1" ColumnSpacing="8" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </Grid>
+            </ScrollViewer>
         </Border>
 
         <!-- ============ 事件列表卡片 ============ -->

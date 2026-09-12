@@ -7,7 +7,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/AppColors.xaml" />
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                
+                <!-- 紧凑版 DatePicker 模板（须在 XamlControlsResources 之后，BasedOn 引用其默认样式） -->
+                <ResourceDictionary Source="Themes/DatePickerCompact.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
