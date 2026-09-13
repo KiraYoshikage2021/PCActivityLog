@@ -4,18 +4,18 @@ using Xunit;
 
 namespace PCActivityLog.Tests;
 
-/// <summary>Extra JSON 辅助方法：事件关联 id 的读写就靠它（曾有 GetValue 的坑，值得守住）。</summary>
+/// <summary>Extra JSON 辅助方法的读写测试（曾有 GetValue 的坑，值得守住）。</summary>
 public class ActivityEventExtraTests
 {
     [Fact]
     public void SetExtra_MergesExistingKeys()
     {
         var e = new ActivityEvent();
-        e.SetExtra("linkedDownloadId", JsonValue.Create(11));
-        e.SetExtra("linkedInstallId", JsonValue.Create(22));
+        e.SetExtra("someId", JsonValue.Create(11));
+        e.SetExtra("otherId", JsonValue.Create(22));
 
-        Assert.Equal(11, e.GetExtraLong("linkedDownloadId"));
-        Assert.Equal(22, e.GetExtraLong("linkedInstallId"));
+        Assert.Equal(11, e.GetExtraLong("someId"));
+        Assert.Equal(22, e.GetExtraLong("otherId"));
     }
 
     [Fact]

@@ -55,9 +55,6 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
     /// <summary>由页面注入：弹提示对话框（替代 MessageBox）。</summary>
     public Func<string, string, Task>? ShowMessage { get; set; }
 
-    /// <summary>由页面注入：跳转/选中某行（滚动到目标）。</summary>
-    public Action<int>? SelectRequested { get; set; }
-
     [ObservableProperty] private GroupOption selectedGroup = new(EventGroup.All, "全部");
     [ObservableProperty] private string searchText = "";
     [ObservableProperty] private DateTimeOffset? dateFrom;
@@ -289,15 +286,6 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
 
     // ---------- 行操作 ----------
 
-    /// <summary>双击行：有关联下载 → 跳转；否则打开位置。</summary>
-    [RelayCommand]
-    public async Task OpenOrJumpAsync(ActivityEventItem? item)
-    {
-        if (item is null) return;
-        if (item.LinkedDownloadId is long id && TryJumpTo(id)) return;
-        await OpenLocationAsync(item);
-    }
-
     /// <summary>打开文件所在文件夹（选中该文件）或用浏览器打开网址。</summary>
     [RelayCommand]
     public async Task OpenLocationAsync(ActivityEventItem? item)
@@ -320,36 +308,6 @@ public partial class TimelineViewModel : ObservableObject, IDisposable
         {
             if (ShowMessage != null) await ShowMessage("打开失败: " + ex.Message, "电脑日志记录");
         }
-    }
-
-    /// <summary>跳转到关联的下载事件行。</summary>
-    [RelayCommand]
-    public void JumpLinked(ActivityEventItem? item)
-    {
-        if (item?.LinkedDownloadId is long id) TryJumpTo(id);
-    }
-
-    private bool TryJumpTo(long eventId)
-    {
-        var idx = IndexOf(eventId);
-        if (idx < 0)
-        {
-            var target = _db.GetEvent(eventId);
-            if (target == null) return false;
-            SearchText = System.IO.Path.GetFileName(target.Path ?? target.Name);
-            Refresh();
-            idx = IndexOf(eventId);
-            if (idx < 0) return false;
-        }
-        SelectRequested?.Invoke(idx);
-        return true;
-    }
-
-    private int IndexOf(long eventId)
-    {
-        for (var i = 0; i < Items.Count; i++)
-            if (Items[i].Id == eventId) return i;
-        return -1;
     }
 
     /// <summary>复制某行名称到剪贴板。</summary>

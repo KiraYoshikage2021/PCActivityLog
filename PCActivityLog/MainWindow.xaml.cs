@@ -110,7 +110,8 @@ public sealed partial class MainWindow : Window
     private const double DefaultClientHeight = 800;
 
     // 最小窗口客户区（有效像素）。低于该宽度时工具栏已自动折叠为两行 + 横向滚动兜底，
-    // 窗口本身不允许缩得更小（否则按钮/内容不可达）。
+    // 窗口本身不允许缩得更小（否则按钮/内容不可达）。时间线列表自身有横向滚动兜底
+    // （列总宽超出可视区时底部出滚动条），无需为表格保宽度。
     private const double MinClientWidth = 800;
     private const double MinClientHeight = 480;
 

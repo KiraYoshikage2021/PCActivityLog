@@ -44,8 +44,8 @@ public class ActivityEvent
 
     /// <summary>
     /// 附加信息 JSON 字符串。结构：
-    /// { "renameOldPath": "旧路径", "linkedDownloadId": 123, "linkedInstallId": 456,
-    ///   "hostUrl": "下载直链", "referrerUrl": "引荐页", "unexpected": true }
+    /// { "renameOldPath": "旧路径", "hostUrl": "下载直链", "referrerUrl": "引荐页", "unexpected": true }
+    /// （旧版本的 linkedDownloadId/linkedInstallId 已随"来源安装包"功能移除，历史残留键会被安全忽略）
     /// </summary>
     public string? Extra { get; set; }
 

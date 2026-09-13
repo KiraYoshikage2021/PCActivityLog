@@ -10,7 +10,7 @@ namespace PCActivityLog.Watchers;
 ///   1. 注册全部模块，按配置启动；
 ///   2. 设置页开关模块 → <see cref="SetModuleEnabled"/> 立即启停（先销毁旧实例资源再重建）；
 ///   3. 模块重启（配置变化后重建实例，杜绝旧对象残留引用）；
-///   4. 事件汇入：写队列 → 气泡通知 → 安装事件触发下载关联匹配；
+///   4. 事件汇入：写队列 → 气泡通知；
 ///   5. 程序退出时统一 <see cref="StopAll"/>（Dispose 清单）。
 /// </summary>
 public class WatcherManager : IEventSink, IDisposable
@@ -19,34 +19,18 @@ public class WatcherManager : IEventSink, IDisposable
     private readonly WriteQueue _writeQueue;
     private readonly Database _db;
     private readonly NotificationService? _notifier;
-    private readonly EventLinker? _linker;
     private readonly object _lock = new();
 
     /// <summary>全部已注册模块（构造时固定顺序）。</summary>
     private readonly List<IWatcherModule> _modules = new();
 
     public WatcherManager(AppSettings settings, Database db, WriteQueue writeQueue,
-        NotificationService? notifier, EventLinker? linker)
+        NotificationService? notifier)
     {
         _settings = settings;
         _db = db;
         _writeQueue = writeQueue;
         _notifier = notifier;
-        _linker = linker;
-
-        // 关联匹配必须在事件"入库后"做（此时才有自增 Id，能反写对方的 extra）
-        if (_linker != null)
-            _writeQueue.EventsCommitted += OnEventsCommittedForLinking;
-    }
-
-    /// <summary>入库完成回调：对安装/更新事件做下载↔安装关联（配对解绑见 Dispose）。</summary>
-    private void OnEventsCommittedForLinking(object? sender, IReadOnlyList<Models.ActivityEvent> events)
-    {
-        foreach (var e in events)
-        {
-            if (e.Type is Models.EventType.Install or Models.EventType.Update)
-                _linker?.OnInstallEvent(e);
-        }
     }
 
     /// <summary>创建并注册全部模块（不启动）。</summary>
@@ -142,7 +126,6 @@ public class WatcherManager : IEventSink, IDisposable
 
     /// <summary>
     /// 模块产出事件的统一入口：入库 → 通知。
-    /// （下载↔安装关联改在 WriteQueue.EventsCommitted 里做，见构造函数。）
     /// 监视器线程调用，必须快进快出；任何一步失败都不影响入库。
     /// </summary>
     public void Dispatch(ActivityEvent e)
@@ -160,8 +143,6 @@ public class WatcherManager : IEventSink, IDisposable
 
     public void Dispose()
     {
-        if (_linker != null)
-            _writeQueue.EventsCommitted -= OnEventsCommittedForLinking; // 配对解绑
         StopAll();
         lock (_lock)
         {

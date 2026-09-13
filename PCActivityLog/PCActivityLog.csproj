@@ -15,10 +15,11 @@
     <SelfContained>true</SelfContained>
     <EnableMsixTooling>false</EnableMsixTooling>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <Version>2.8.0</Version>
+    <Version>2.9.0</Version>
     <AssemblyName>PCActivityLog</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251003001" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.1721" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />

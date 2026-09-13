@@ -42,8 +42,6 @@ public class ActivityEventItem
         // DataGrid 行容器是回收复用的——滚动时每次换绑都会重新求值绑定属性，
         // 若用计算属性（每次求值做 JSON 解析/字符串格式化）会造成密集小额内存分配，
         // GC 频繁触发 → 滚动偶发顿挫。构造时算一次后绑定零分配。
-        LinkedDownloadId = e.GetExtraLong("linkedDownloadId");
-        LinkedHint = LinkedDownloadId is null ? "" : "🔗 来源安装包";
         Detail = ComputeDetail(e);
     }
 
@@ -130,12 +128,6 @@ public class ActivityEventItem
 
     /// <summary>路径列：文件/软件路径（浏览记录功能已移除，不再显示网址）。</summary>
     public string Location => Event.Path ?? "";
-
-    /// <summary>关联的下载事件 id（构造时一次计算），无则空。</summary>
-    public long? LinkedDownloadId { get; }
-
-    /// <summary>关联提示文字（构造时一次计算；无关联为空）。</summary>
-    public string LinkedHint { get; }
 
     /// <summary>来源显示（chrome/edge/firefox/msi/registry/manual…）。</summary>
     public string SourceDisplay => Event.Source ?? "";

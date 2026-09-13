@@ -162,11 +162,11 @@ public class DatabaseTests
             var id = InsertRaw(db, new ActivityEvent { Type = EventType.Manual, Name = "n1", OccurredAt = TrimSeconds(DateTime.Now) });
 
             db.UpdateNote(id, "我的备注");
-            db.UpdateExtra(id, "{\"linkedDownloadId\": 7}");
+            db.UpdateExtra(id, "{\"someId\": 7}");
             var e = db.GetEvent(id);
             Assert.NotNull(e);
             Assert.Equal("我的备注", e!.Note);
-            Assert.Equal(7, e.GetExtraLong("linkedDownloadId"));
+            Assert.Equal(7, e.GetExtraLong("someId"));
             Assert.Null(db.GetEvent(99999));
         }
         finally { TestDir.Cleanup(dir); }
@@ -185,24 +185,6 @@ public class DatabaseTests
             Assert.True(db.HasInstallEvent("AppX", "2.5"));
             Assert.False(db.HasInstallEvent("AppX", "3.0"));
             Assert.False(db.HasInstallEvent("AppY", "2.5"));
-        }
-        finally { TestDir.Cleanup(dir); }
-    }
-
-    [Fact]
-    public void QueryDownloadsSince_ReturnsOnlyDownloadType()
-    {
-        var dir = TestDir.Create();
-        try
-        {
-            var db = NewDb(dir);
-            db.Initialize();
-            var now = TrimSeconds(DateTime.Now);
-            InsertRaw(db, new ActivityEvent { Type = EventType.Download, Name = "a.zip", OccurredAt = now });
-            InsertRaw(db, new ActivityEvent { Type = EventType.Install, Name = "App", OccurredAt = now });
-
-            var rows = db.QueryDownloadsSince(now.AddMinutes(-1));
-            Assert.Equal("a.zip", Assert.Single(rows).Name);
         }
         finally { TestDir.Cleanup(dir); }
     }

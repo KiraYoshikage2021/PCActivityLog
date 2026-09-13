@@ -4,13 +4,13 @@ namespace PCActivityLog.Services;
 
 /// <summary>
 /// 托盘图标服务 —— Windows 原生 Shell_NotifyIcon 实现（纯 P/Invoke，零第三方依赖）。
-/// 职责：托盘图标的添加/更新/删除、鼠标左/右键回调、气泡通知（带程序图标）。
+/// 职责：托盘图标的添加/更新/删除、鼠标左/右键回调、气泡通知（无图标）。
 ///
 /// 实现要点：
 ///  - 在 UI 线程创建一个 message-only 隐藏窗口接收托盘回调消息（该线程有消息泵）；
 ///  - 图标用 LoadImage 从 app.ico 按托盘尺寸取帧（系统自动选最匹配的一帧，小图清晰），
 ///    加载失败时回退 exe 内嵌图标（ExtractIconEx）；
-///  - 气泡用 NOTIFYICONDATA 的 NIF_INFO，NIIF_USER + hBalloonIcon 让气泡也显示程序图标；
+///  - 气泡用 NOTIFYICONDATA 的 NIF_INFO，NIIF_NONE（不带图标，与旧 H.NotifyIcon 时代观感一致）；
 ///  - explorer.exe 重启后系统广播 "TaskbarCreated"，监听到后重新补挂图标；
 ///  - 必须在有线程消息泵的线程上创建与销毁（本程序固定在 UI 线程使用）。
 /// </summary>
@@ -32,7 +32,7 @@ public sealed class TrayIconService : IDisposable
 
     private const uint NIM_ADD = 0x00, NIM_MODIFY = 0x01, NIM_DELETE = 0x02;
     private const uint NIF_MESSAGE = 0x01, NIF_ICON = 0x02, NIF_TIP = 0x04, NIF_INFO = 0x10;
-    private const uint NIIF_USER = 0x04, NIIF_RESPECT_QUIET_TIME = 0x80;
+    private const uint NIIF_RESPECT_QUIET_TIME = 0x80;
     private const uint IMAGE_ICON = 1, LR_LOADFROMFILE = 0x10;
     private const int HWND_MESSAGE = -3;
 
@@ -87,8 +87,8 @@ public sealed class TrayIconService : IDisposable
             _nid.uFlags |= NIF_INFO;
             _nid.szInfoTitle = Truncate(title, 63);
             _nid.szInfo = Truncate(text, 255);
-            _nid.dwInfoFlags = NIIF_USER | NIIF_RESPECT_QUIET_TIME;
-            _nid.hBalloonIcon = _hIcon;
+            _nid.dwInfoFlags = NIIF_RESPECT_QUIET_TIME; // NIIF_NONE：气泡不带图标（用户确认不需要）
+            _nid.hBalloonIcon = IntPtr.Zero;
             Shell_NotifyIconW(NIM_MODIFY, ref _nid);
         }
         catch (Exception ex)

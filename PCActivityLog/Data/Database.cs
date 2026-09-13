@@ -248,24 +248,6 @@ public class Database
         return cmd.ExecuteScalar() is not null;
     }
 
-    /// <summary>查询某时间之后、某类型的下载事件（供下载↔安装关联匹配）。</summary>
-    public List<ActivityEvent> QueryDownloadsSince(DateTime since)
-    {
-        var list = new List<ActivityEvent>();
-        using var conn = Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT id, type, name, path, size_bytes, url, source, version, old_version, occurred_at, note, extra
-            FROM events
-            WHERE type='download' AND occurred_at >= @since
-            ORDER BY id DESC LIMIT 200
-            """;
-        cmd.Parameters.AddWithValue("@since", ToDbTime(since));
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read()) list.Add(ReadEvent(reader));
-        return list;
-    }
-
     /// <summary>更新某条事件的备注。</summary>
     public void UpdateNote(long id, string? note)
     {

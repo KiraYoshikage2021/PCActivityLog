@@ -109,6 +109,12 @@ public class AppSettings
     /// <summary>记录时窗口是否处于最大化（恢复时单独还原，不与正常几何混存）。</summary>
     public bool WindowMaximized { get; set; } = false;
 
+    // ---------- 时间线列宽 ----------
+
+    /// <summary>时间线 5 个固定列宽（像素：时间/类型/大小版本/路径/备注；名称★列不存）。null = 默认列宽。
+    /// 注意不能叫 ColumnWidths：那是 v1.x 遗留键（对象格式），同名不同类型会让旧配置反序列化失败而整文件回退默认值。</summary>
+    public List<double>? TimelineColumnWidths { get; set; }
+
     // ---------- 持久化 ----------
 
     private static readonly string SettingsFile = Path.Combine(

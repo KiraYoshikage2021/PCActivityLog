@@ -146,9 +146,8 @@ public partial class App : Application
 
         WriteQueueInstance = new WriteQueue(Db);
         _notifier = new NotificationService(Settings);
-        var linker = new EventLinker(Db);
 
-        Manager = new WatcherManager(Settings, Db, WriteQueueInstance, _notifier, linker);
+        Manager = new WatcherManager(Settings, Db, WriteQueueInstance, _notifier);
         Manager.BuildModules();
         Manager.StartAll();
 
